@@ -29,13 +29,35 @@ def get_sheet():
     return client.open(SPREADSHEET_NAME).sheet1
 
 def capture_card(url: str, output_path: str = "daily_question.jpg") -> str:
-    print(f"Launching Playwright to capture: {url}")
+    print(f"Launching Playwright mobile capture: {url}")
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
-        # 1080x1080 square for Instagram Feed, 2x scale for sharp text/SVGs
-        page = browser.new_page(viewport={"width": 1080, "height": 1080}, device_scale_factor=2)
+        
+        # Emulate a mobile device layout (width: 414px, high DPI for retina sharpness)
+        context = browser.new_context(
+            viewport={"width": 430, "height": 932}, # iPhone Pro Max dimensions
+            device_scale_factor=3,                   # 3x pixel density for crystal clear SVGs/text
+            is_mobile=True,
+            has_touch=True
+        )
+        page = context.new_page()
         page.goto(url, wait_until="networkidle")
-        page.screenshot(path=output_path, type="jpeg", quality=95)
+        
+        # Optional: wait 500ms for animations, fonts, or MathJax/KaTeX to settle
+        page.wait_for_timeout(500)
+
+        # 1. Target the question card directly if it has a container class/id
+        # Replace '#question-container' with your actual CSS selector (e.g. '.question-box', 'main', etc.)
+        card = page.locator("#question-container")
+        
+        if card.count() > 0:
+            print("Found dedicated question element, capturing card...")
+            card.screenshot(path=output_path, type="jpeg", quality=95)
+        else:
+            # Fallback: Capture the mobile viewport
+            print("Capturing viewport...")
+            page.screenshot(path=output_path, type="jpeg", quality=95)
+            
         browser.close()
     print("Screenshot captured successfully.")
     return output_path
