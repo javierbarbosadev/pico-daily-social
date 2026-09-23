@@ -33,35 +33,31 @@ def capture_card(url: str, output_path: str = "daily_question.jpg") -> str:
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         
-        # Emulate a mobile device layout (width: 414px, high DPI for retina sharpness)
+        # 430 x 537.5 is exactly 4:5 (the standard Instagram portrait ratio).
+        # device_scale_factor=2 produces an ultra-sharp 860 x 1075 image.
         context = browser.new_context(
-            viewport={"width": 430, "height": 932}, # iPhone Pro Max dimensions
-            device_scale_factor=3,                   # 3x pixel density for crystal clear SVGs/text
+            viewport={"width": 430, "height": 538},
+            device_scale_factor=2,
             is_mobile=True,
             has_touch=True
         )
         page = context.new_page()
         page.goto(url, wait_until="networkidle")
-        
-        # Optional: wait 500ms for animations, fonts, or MathJax/KaTeX to settle
-        page.wait_for_timeout(500)
+        page.wait_for_timeout(1000)
 
-        # 1. Target the question card directly if it has a container class/id
-        # Replace '#question-container' with your actual CSS selector (e.g. '.question-box', 'main', etc.)
+        # Target the card or fall back to the exact 4:5 viewport
         card = page.locator("#question-container")
-        
         if card.count() > 0:
-            print("Found dedicated question element, capturing card...")
+            print("Targeting #question-container...")
             card.screenshot(path=output_path, type="jpeg", quality=95)
         else:
-            # Fallback: Capture the mobile viewport
-            print("Capturing viewport...")
+            print("Capturing 4:5 mobile viewport...")
             page.screenshot(path=output_path, type="jpeg", quality=95)
-            
+
         browser.close()
     print("Screenshot captured successfully.")
     return output_path
-
+    
 def upload_to_cdn(image_path: str) -> str:
     print("Uploading screenshot to Cloudinary...")
     res = cloudinary.uploader.upload(
