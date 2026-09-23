@@ -45,7 +45,7 @@ def upload_to_cdn(image_path: str) -> str:
     res = cloudinary.uploader.upload(
         image_path,
         folder="picolearn_social",
-        format="jpg"
+        resource_type="image"
     )
     return res["secure_url"]
 
@@ -114,7 +114,7 @@ Can your Year 5 child solve this 11+ question? Drop your answer in the comments 
 SOLUTION & EXPLANATION:
 {target_row['explanation']}
 
-👉 Practise hundreds more interactive questions at picolearn.co.uk
+👉 Practise thousands more interactive questions at picolearn.co.uk
 
 #11plus #11plusprep #grammarSchool #elevenplus #maths #reasoning"""
 
