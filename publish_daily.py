@@ -63,9 +63,14 @@ def upload_to_cdn(image_path: str) -> str:
     res = cloudinary.uploader.upload(
         image_path,
         folder="picolearn_social",
-        resource_type="image"
+        resource_type="image",
+        overwrite=True,
+        invalidate=True
     )
-    return res["secure_url"]
+    url = res["secure_url"]
+    print(f"Uploaded successfully. Waiting 5s for CDN edge warm-up: {url}")
+    time.sleep(5)
+    return url
 
 def publish_to_instagram(image_url: str, caption: str):
     base_url = f"https://graph.facebook.com/v21.0/{IG_USER_ID}"
@@ -77,6 +82,8 @@ def publish_to_instagram(image_url: str, caption: str):
         "caption": caption,
         "access_token": ACCESS_TOKEN
     }
+    
+    # Send as data or params
     res = requests.post(f"{base_url}/media", data=container_payload).json()
     
     if "id" not in res:
@@ -101,7 +108,7 @@ def publish_to_instagram(image_url: str, caption: str):
         raise RuntimeError(f"Publish failed: {pub_res}")
 
     print(f"Success! Post live on @pico11plus. Live Media ID: {pub_res['id']}")
-
+    
 def main():
     sheet = get_sheet()
     records = sheet.get_all_records()
