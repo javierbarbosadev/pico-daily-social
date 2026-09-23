@@ -33,8 +33,7 @@ def capture_card(url: str, output_path: str = "daily_question.jpg") -> str:
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         
-        # 430 x 537.5 is exactly 4:5 (the standard Instagram portrait ratio).
-        # device_scale_factor=2 produces an ultra-sharp 860 x 1075 image.
+        # 430 x 538 gives an exact 4:5 ratio (860 x 1076 with scale factor 2)
         context = browser.new_context(
             viewport={"width": 430, "height": 538},
             device_scale_factor=2,
@@ -45,14 +44,25 @@ def capture_card(url: str, output_path: str = "daily_question.jpg") -> str:
         page.goto(url, wait_until="networkidle")
         page.wait_for_timeout(1000)
 
-        # Target the card or fall back to the exact 4:5 viewport
-        card = page.locator("#question-container")
-        if card.count() > 0:
-            print("Targeting #question-container...")
-            card.screenshot(path=output_path, type="jpeg", quality=95)
-        else:
-            print("Capturing 4:5 mobile viewport...")
-            page.screenshot(path=output_path, type="jpeg", quality=95)
+        # Inject CSS to hide the header navigation bar and scale content slightly
+        page.add_style_tag(content="""
+            /* Hide top bar navigation, logo, and action icons */
+            header, nav, [class*="header"], [class*="navbar"] {
+                display: none !important;
+            }
+            /* Remove excess top padding and scale the content slightly to fit */
+            body {
+                padding-top: 12px !important;
+                margin-top: 0 !important;
+                zoom: 0.92;
+            }
+        """)
+        
+        # Brief pause to let layout recalculate
+        page.wait_for_timeout(500)
+
+        print("Capturing full 4:5 mobile card...")
+        page.screenshot(path=output_path, type="jpeg", quality=95)
 
         browser.close()
     print("Screenshot captured successfully.")
