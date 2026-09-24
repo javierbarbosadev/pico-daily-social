@@ -242,11 +242,37 @@ def main():
     sheet = client.open("PicoLearn Social Queue").sheet1
     records = sheet.get_all_records()
 
-    for idx, row in enumerate(records, start=2):
-        if str(row.get("status", "")).upper() == "READY":
-            url = row.get("preview_url") or row.get("url")
-            caption = row.get("caption", "Can your child solve this daily 11+ challenge? Drop your answer below! 👇 #11plus #11plusprep #grammarschool")
-            correct_answer = row.get("answer") or row.get("correct_answer") or "B"
+for idx, row in enumerate(records, start=2):
+    # 1. Normalise all dictionary keys to lowercase with underscores
+    clean_row = {str(k).strip().lower().replace(" ", "_"): v for k, v in row.items()}
+
+    # 2. Check status safely
+    if str(clean_row.get("status", "")).strip().upper() == "READY":
+        # 3. Pull target_url or fallbacks
+        url = (
+            clean_row.get("target_url")
+            or clean_row.get("preview_url")
+            or clean_row.get("url")
+            or clean_row.get("question_url")
+            or clean_row.get("link")
+        )
+
+        # 4. Guard against missing or blank URLs
+        if not url or not str(url).strip().startswith("http"):
+            print(f"Skipping row {idx}: URL is missing or invalid. Columns found: {list(clean_row.keys())}")
+            continue
+
+        caption = (
+            clean_row.get("caption")
+            or "Can your child solve this daily 11+ challenge? Drop your answer below! 👇 #11plus #11plusprep #grammarschool"
+        )
+        
+        correct_answer = (
+            clean_row.get("answer")
+            or clean_row.get("correct_answer")
+            or clean_row.get("correct_option")
+            or "B"
+        )
 
             print(f"Processing Reel row {idx} with URL: {url}")
             mp4_file = record_reel_video(url, correct_letter=correct_answer)
