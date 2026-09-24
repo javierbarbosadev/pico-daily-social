@@ -143,7 +143,7 @@ def main():
 
     caption = f"""{target_row['hook']}
 
-Can your Year 4/5/6 child solve this 11+ question? Drop your answer in the comments below! 👇
+Can your child solve this 11+ question? Drop your answer in the comments below! 👇
 
 ...
 SOLUTION & EXPLANATION:
