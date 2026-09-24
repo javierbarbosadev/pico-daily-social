@@ -137,7 +137,7 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
             const banner = document.createElement('div');
             banner.id = 'pico-reel-hook';
             banner.innerHTML = `
-                <div>⏱️ Can your Year 5 child solve this?</div>
+                <div>⏱️ Can your child solve this?</div>
                 <div id="pico-timer-wrapper"><div id="pico-timer-bar"></div></div>
             `;
             document.body.prepend(banner);
