@@ -227,6 +227,7 @@ def upload_video_to_cdn(video_path: str) -> str:
 def publish_reel_to_instagram(video_url: str, caption: str):
     base_url = f"https://graph.facebook.com/v21.0/{IG_USER_ID}"
 
+    # 1. Create Media Container
     print("Creating Reel media container on Instagram...")
     container_payload = {
         "media_type": "REELS",
@@ -241,15 +242,41 @@ def publish_reel_to_instagram(video_url: str, caption: str):
     container_id = res["id"]
     print(f"Reel Container created. ID: {container_id}")
 
-    # Meta takes 20-30 seconds to encode and process video
-    print("Waiting 25 seconds for Meta video processing...")
-    time.sleep(25)
+    # 2. Poll Container Status until Meta transcoding is FINISHED
+    print("Polling Meta for Reel transcoding completion...")
+    status_url = f"https://graph.facebook.com/v21.0/{container_id}"
+    params = {
+        "fields": "status_code,status",
+        "access_token": ACCESS_TOKEN
+    }
 
+    max_attempts = 24  # Poll up to 2 minutes (24 * 5s)
+    is_ready = False
+
+    for attempt in range(1, max_attempts + 1):
+        time.sleep(5)
+        status_res = requests.get(status_url, params=params).json()
+        status_code = status_res.get("status_code")
+        print(f"[{attempt}/{max_attempts}] Meta Reel Status: {status_code}")
+
+        if status_code == "FINISHED":
+            is_ready = True
+            break
+        elif status_code == "ERROR":
+            raise RuntimeError(f"Meta failed to process Reel video: {status_res}")
+        elif status_code == "EXPIRED":
+            raise RuntimeError(f"Meta Reel container expired before publishing: {status_res}")
+
+    if not is_ready:
+        raise TimeoutError("Meta timed out processing the Reel video after 2 minutes.")
+
+    # 3. Publish Live
     print("Publishing Reel to feed...")
-    pub_res = requests.post(
-        f"{base_url}/media_publish",
-        data={"creation_id": container_id, "access_token": ACCESS_TOKEN}
-    ).json()
+    publish_payload = {
+        "creation_id": container_id,
+        "access_token": ACCESS_TOKEN
+    }
+    pub_res = requests.post(f"{base_url}/media_publish", data=publish_payload).json()
 
     if "id" not in pub_res:
         raise RuntimeError(f"Publish failed: {pub_res}")
