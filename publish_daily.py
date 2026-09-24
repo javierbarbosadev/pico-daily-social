@@ -31,12 +31,10 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
         
     print(f"Launching Playwright mobile capture for: {url} (Target Answer: {target_char})")
     os.makedirs("raw_video", exist_ok=True)
-    temp_webm = "raw_video/temp_reel.webm"
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         
-        # Real mobile dimensions to guarantee single-column vertical layout
         context = browser.new_context(
             viewport={"width": 430, "height": 932},
             device_scale_factor=2,
@@ -47,13 +45,12 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
         )
         page = context.new_page()
         
-        # 1. Navigate and wait until question card is fully rendered
+        # 1. Navigate and load
         page.goto(url, wait_until="networkidle")
         page.wait_for_timeout(1000)
 
-        # 2. Inject clean mobile styling
+        # 2. Inject mobile layout styling
         page.add_style_tag(content="""
-            /* Hide top app navigation and 'Check Answer' action buttons */
             header, nav, [class*="header"], [class*="navbar"], button:has-text("Check Answer"), [class*="hint"] { 
                 display: none !important; 
             }
@@ -66,7 +63,6 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
                 overflow: hidden !important;
             }
 
-            /* Top Hook Banner */
             #pico-reel-hook {
                 position: fixed;
                 top: 16px;
@@ -105,7 +101,6 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
                 to   { width: 0%; background: #EF4444; }
             }
 
-            /* Highlight correct answer card */
             .pico-highlight-correct {
                 background-color: #10B981 !important;
                 color: #FFFFFF !important;
@@ -118,7 +113,6 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
                 color: #FFFFFF !important;
             }
 
-            /* Slide-up CTA banner */
             #pico-cta-overlay {
                 position: fixed;
                 bottom: -260px;
@@ -138,9 +132,8 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
             }
         """)
 
-        # 3. Add dynamic banner, trigger answer pop, and slide CTA
+        # 3. Add DOM overlays and animations
         page.evaluate(f"""() => {{
-            // Add Hook Banner
             const banner = document.createElement('div');
             banner.id = 'pico-reel-hook';
             banner.innerHTML = `
@@ -149,7 +142,6 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
             `;
             document.body.prepend(banner);
 
-            // Add CTA Card
             const cta = document.createElement('div');
             cta.id = 'pico-cta-overlay';
             cta.innerHTML = `
@@ -161,7 +153,6 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
             `;
             document.body.appendChild(cta);
 
-            // Highlight target answer at 3.5s
             setTimeout(() => {{
                 const target = "{target_char}";
                 const all = Array.from(document.querySelectorAll('div, button, li, label'));
@@ -176,13 +167,11 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
                 }}
             }}, 3500);
 
-            // Slide CTA up at 5.5s
             setTimeout(() => {{
                 cta.classList.add('active');
             }}, 5500);
         }}""")
 
-        # 4. Record the 7-second sequence
         page.wait_for_timeout(7000)
 
         video_path = page.video.path()
@@ -191,22 +180,33 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
 
     print(f"Raw capture saved: {video_path}")
 
-    # 5. Process with ffmpeg:
-    # - Trim initial page-load blank frames with -sseof or -ss
-    # - Scale up to 1080x1920 (9:16 Instagram standard)
-    # - Format with libx264 high profile
-    print("Trimming load time and scaling to 1080x1920 MP4...")
+    # 4. Generate ticking audio effect and render Instagram MP4
+    print("Generating clock ticking audio and rendering final MP4...")
+    
+    # Audio graph:
+    # - 7 clicks (one every 0.5s from 0.0s to 3.0s)
+    # - 1 chime at 3.5s when the answer is revealed
+    audio_filter = (
+        "eval='click=sin(2*PI*1200*t)*exp(-30*mod(t,0.5))*(t<3.5);"
+        "bell=sin(2*PI*880*t)*exp(-2*(t-3.5))*(t>=3.5)*(t<6.5);"
+        "click+0.6*bell'"
+    )
+
     ffmpeg_cmd = [
         "ffmpeg", "-y",
-        "-sseof", "-7.0",       # Grabs only the final 7 seconds where the animation took place
+        "-sseof", "-7.0",
         "-i", video_path,
-        "-vf", "scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=0xF8FAFC",
+        "-f", "lavfi", "-t", "7.0", "-i", f"aevalsrc={audio_filter}:s=44100",
+        "-filter_complex", "[0:v]scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=0xF8FAFC[v]",
+        "-map", "[v]",
+        "-map", "1:a",
         "-c:v", "libx264", "-profile:v", "high", "-level:v", "4.0",
         "-pix_fmt", "yuv420p", "-r", "30",
+        "-c:a", "aac", "-b:a", "128k", "-shortest",
         output_mp4
     ]
     subprocess.run(ffmpeg_cmd, check=True)
-    print("Reel ready for Instagram.")
+    print("Reel with ticking audio ready for Instagram.")
     return output_mp4
     
 def upload_video_to_cdn(video_path: str) -> str:
