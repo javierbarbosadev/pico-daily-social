@@ -25,59 +25,78 @@ cloudinary.config(
 )
 
 def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_reel.mp4") -> str:
-    print(f"Launching Playwright to record Reel for: {url} (Answer: {correct_letter})")
-    
+    target_char = str(correct_letter).strip().upper()
+    if target_char not in ["A", "B", "C", "D"]:
+        target_char = "B"
+        
+    print(f"Launching Playwright to record Reel for: {url} (Target Answer: {target_char})")
     os.makedirs("raw_video", exist_ok=True)
-    letter_index_map = {"A": 0, "B": 1, "C": 2, "D": 3}
-    target_idx = letter_index_map.get(str(correct_letter).strip().upper(), 1)
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
+        
+        # Match viewport to video recording size (1080x1920) so it fills the full screen
         context = browser.new_context(
-            viewport={"width": 540, "height": 960}, # 9:16 mobile canvas
+            viewport={"width": 1080, "height": 1920},
+            device_scale_factor=1,
             record_video_dir="raw_video/",
-            record_video_size={"width": 1080, "height": 1920}
+            record_video_size={"width": 1080, "height": 1920},
+            is_mobile=True,
+            has_touch=True
         )
         page = context.new_page()
         page.goto(url, wait_until="networkidle")
 
-        # Inject Reel overlay styles: Hook banner, animated timer bar, answer flash, and CTA card
+        # Inject Reel styling and layout scaling
         page.add_style_tag(content="""
-            /* Hide top site navigation and footers */
-            header, nav, [class*="header"], [class*="navbar"] { display: none !important; }
+            /* Hide top site navigation and extraneous buttons */
+            header, nav, [class*="header"], [class*="navbar"], button:has-text("Check Answer") { 
+                display: none !important; 
+            }
 
-            body {
+            html, body {
+                width: 1080px !important;
+                height: 1920px !important;
                 background-color: #F8FAFC !important;
-                padding: 120px 24px 40px 24px !important;
                 font-family: system-ui, -apple-system, sans-serif !important;
-                position: relative !important;
                 overflow: hidden !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                box-sizing: border-box !important;
+            }
+
+            /* Scale the question content up to fill the 1080x1920 vertical canvas comfortably */
+            body > div, main {
+                transform: scale(1.65);
+                transform-origin: top center;
+                margin-top: 180px !important;
             }
 
             /* Top Hook Banner */
             #pico-reel-hook {
                 position: fixed;
-                top: 24px;
-                left: 20px;
-                right: 20px;
+                top: 50px;
+                left: 40px;
+                right: 40px;
                 background: #0F172A;
                 color: #FFFFFF;
-                padding: 16px 20px;
-                border-radius: 16px;
-                font-size: 20px;
-                font-weight: 700;
+                padding: 32px 30px;
+                border-radius: 28px;
+                font-size: 42px;
+                font-weight: 800;
                 text-align: center;
-                box-shadow: 0 10px 25px rgba(0,0,0,0.15);
-                z-index: 9999;
+                box-shadow: 0 15px 35px rgba(0,0,0,0.25);
+                z-index: 999999;
+                transform: none !important;
             }
 
-            /* 3.5-second countdown progress bar */
+            /* 3.5s countdown timer bar */
             #pico-timer-wrapper {
                 width: 100%;
-                height: 8px;
+                height: 14px;
                 background: #334155;
-                border-radius: 4px;
-                margin-top: 12px;
+                border-radius: 7px;
+                margin-top: 20px;
                 overflow: hidden;
             }
             #pico-timer-bar {
@@ -97,35 +116,39 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
             .pico-highlight-correct {
                 background-color: #10B981 !important;
                 color: #FFFFFF !important;
-                border-color: #059669 !important;
-                transform: scale(1.04) !important;
+                border: 4px solid #059669 !important;
+                transform: scale(1.05) !important;
                 transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
-                box-shadow: 0 0 25px rgba(16, 185, 129, 0.4) !important;
+                box-shadow: 0 0 35px rgba(16, 185, 129, 0.6) !important;
+            }
+            .pico-highlight-correct * {
+                color: #FFFFFF !important;
             }
 
             /* Sliding CTA overlay card */
             #pico-cta-overlay {
                 position: fixed;
-                bottom: -280px;
-                left: 16px;
-                right: 16px;
+                bottom: -500px;
+                left: 40px;
+                right: 40px;
                 background: #FFFFFF;
-                border-radius: 20px;
-                border-top: 5px solid #10B981;
-                box-shadow: 0 -10px 40px rgba(0,0,0,0.2);
-                padding: 24px;
+                border-radius: 32px;
+                border-top: 8px solid #10B981;
+                box-shadow: 0 -20px 60px rgba(0,0,0,0.25);
+                padding: 44px 30px;
                 text-align: center;
                 transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
-                z-index: 10000;
+                z-index: 999999;
+                transform: none;
             }
             #pico-cta-overlay.active {
-                transform: translateY(-295px);
+                transform: translateY(-560px) !important;
             }
         """)
 
-        # Inject DOM elements and trigger timing via browser JS
+        # Inject Hook, CTA and target the specific letter element
         page.evaluate(f"""() => {{
-            // 1. Inject Hook Banner
+            // 1. Hook Banner
             const banner = document.createElement('div');
             banner.id = 'pico-reel-hook';
             banner.innerHTML = `
@@ -134,24 +157,39 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
             `;
             document.body.prepend(banner);
 
-            // 2. Inject CTA Overlay
+            // 2. CTA Card
             const cta = document.createElement('div');
             cta.id = 'pico-cta-overlay';
             cta.innerHTML = `
-                <div style="font-size: 20px; font-weight: 800; color: #0F172A; margin-bottom: 6px;">PicoLearn 11+ Practice</div>
-                <div style="font-size: 15px; color: #475569; margin-bottom: 12px;">Difficulty adapts automatically to your child.</div>
-                <div style="display: inline-block; background: #10B981; color: #fff; font-size: 14px; font-weight: 700; padding: 8px 16px; border-radius: 10px;">
+                <div style="font-size: 38px; font-weight: 800; color: #0F172A; margin-bottom: 12px;">PicoLearn 11+ Practice</div>
+                <div style="font-size: 26px; color: #475569; margin-bottom: 24px;">Smart questions that adapt to your child's level.</div>
+                <div style="display: inline-block; background: #10B981; color: #fff; font-size: 26px; font-weight: 700; padding: 16px 36px; border-radius: 18px;">
                     Try free at picolearn.co.uk
                 </div>
             `;
             document.body.appendChild(cta);
 
-            // 3. Trigger answer highlight at 3.5s
+            // 3. Highlight the correct choice element at 3.5s by searching for its text label
             setTimeout(() => {{
-                // Finds answer buttons or choice cards on the page
-                const options = document.querySelectorAll('button, [class*="option"], [class*="choice"], [class*="answer"]');
-                if (options.length > {target_idx}) {{
-                    options[{target_idx}].classList.add('pico-highlight-correct');
+                const target = "{target_char}";
+                // Find any card or container starting with or displaying the letter badge
+                const allElements = Array.from(document.querySelectorAll('div, button, li, label'));
+                
+                // Find candidates that represent the answer row for that letter
+                const match = allElements.find(el => {{
+                    const text = el.innerText ? el.innerText.trim() : '';
+                    return (
+                        (text === target || text.startsWith(target + ' ') || text.startsWith(target + '\\n')) &&
+                        el.children.length <= 3 &&
+                        el.offsetHeight > 30 &&
+                        el.offsetHeight < 160
+                    );
+                }});
+
+                if (match) {{
+                    // Highlight the container row or button itself
+                    const container = match.closest('button') || match.closest('[class*="option"]') || match;
+                    container.classList.add('pico-highlight-correct');
                 }}
             }}, 3500);
 
@@ -161,20 +199,20 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
             }}, 5500);
         }}""")
 
-        # Record total duration: 7.5 seconds
+        # Wait to complete the 7.5 second sequence
         page.wait_for_timeout(7500)
-        
-        # Save video
+
         video_path = page.video.path()
         context.close()
         browser.close()
 
     print(f"Recorded raw WebM: {video_path}")
 
-    # Convert to Instagram-compliant MP4 using ffmpeg
+    # Convert to 1080x1920 MP4
     print("Converting to Instagram H.264 MP4...")
     ffmpeg_cmd = [
         "ffmpeg", "-y", "-i", video_path,
+        "-vf", "scale=1080:1920",
         "-c:v", "libx264", "-profile:v", "high", "-level:v", "4.0",
         "-pix_fmt", "yuv420p", "-r", "30",
         output_mp4
