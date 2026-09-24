@@ -29,76 +29,69 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
     if target_char not in ["A", "B", "C", "D"]:
         target_char = "B"
         
-    print(f"Launching Playwright to record Reel for: {url} (Target Answer: {target_char})")
+    print(f"Launching Playwright mobile capture for: {url} (Target Answer: {target_char})")
     os.makedirs("raw_video", exist_ok=True)
+    temp_webm = "raw_video/temp_reel.webm"
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         
-        # Match viewport to video recording size (1080x1920) so it fills the full screen
+        # Real mobile dimensions to guarantee single-column vertical layout
         context = browser.new_context(
-            viewport={"width": 1080, "height": 1920},
-            device_scale_factor=1,
-            record_video_dir="raw_video/",
-            record_video_size={"width": 1080, "height": 1920},
+            viewport={"width": 430, "height": 932},
+            device_scale_factor=2,
             is_mobile=True,
-            has_touch=True
+            has_touch=True,
+            record_video_dir="raw_video/",
+            record_video_size={"width": 430, "height": 932}
         )
         page = context.new_page()
+        
+        # 1. Navigate and wait until question card is fully rendered
         page.goto(url, wait_until="networkidle")
+        page.wait_for_timeout(1000)
 
-        # Inject Reel styling and layout scaling
+        # 2. Inject clean mobile styling
         page.add_style_tag(content="""
-            /* Hide top site navigation and extraneous buttons */
-            header, nav, [class*="header"], [class*="navbar"], button:has-text("Check Answer") { 
+            /* Hide top app navigation and 'Check Answer' action buttons */
+            header, nav, [class*="header"], [class*="navbar"], button:has-text("Check Answer"), [class*="hint"] { 
                 display: none !important; 
             }
 
-            html, body {
-                width: 1080px !important;
-                height: 1920px !important;
+            body {
                 background-color: #F8FAFC !important;
-                font-family: system-ui, -apple-system, sans-serif !important;
+                padding-top: 90px !important;
+                padding-left: 16px !important;
+                padding-right: 16px !important;
                 overflow: hidden !important;
-                margin: 0 !important;
-                padding: 0 !important;
-                box-sizing: border-box !important;
-            }
-
-            /* Scale the question content up to fill the 1080x1920 vertical canvas comfortably */
-            body > div, main {
-                transform: scale(1.65);
-                transform-origin: top center;
-                margin-top: 180px !important;
             }
 
             /* Top Hook Banner */
             #pico-reel-hook {
                 position: fixed;
-                top: 50px;
-                left: 40px;
-                right: 40px;
+                top: 16px;
+                left: 16px;
+                right: 16px;
                 background: #0F172A;
                 color: #FFFFFF;
-                padding: 32px 30px;
-                border-radius: 28px;
-                font-size: 42px;
-                font-weight: 800;
+                padding: 14px 18px;
+                border-radius: 14px;
+                font-size: 16px;
+                font-weight: 700;
                 text-align: center;
-                box-shadow: 0 15px 35px rgba(0,0,0,0.25);
-                z-index: 999999;
-                transform: none !important;
+                box-shadow: 0 10px 25px rgba(0,0,0,0.18);
+                z-index: 99999;
             }
 
-            /* 3.5s countdown timer bar */
             #pico-timer-wrapper {
                 width: 100%;
-                height: 14px;
+                height: 6px;
                 background: #334155;
-                border-radius: 7px;
-                margin-top: 20px;
+                border-radius: 3px;
+                margin-top: 10px;
                 overflow: hidden;
             }
+
             #pico-timer-bar {
                 height: 100%;
                 background: #10B981;
@@ -112,43 +105,42 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
                 to   { width: 0%; background: #EF4444; }
             }
 
-            /* Correct answer pop animation */
+            /* Highlight correct answer card */
             .pico-highlight-correct {
                 background-color: #10B981 !important;
                 color: #FFFFFF !important;
-                border: 4px solid #059669 !important;
-                transform: scale(1.05) !important;
-                transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
-                box-shadow: 0 0 35px rgba(16, 185, 129, 0.6) !important;
+                border: 3px solid #059669 !important;
+                transform: scale(1.03) !important;
+                transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+                box-shadow: 0 0 20px rgba(16, 185, 129, 0.5) !important;
             }
             .pico-highlight-correct * {
                 color: #FFFFFF !important;
             }
 
-            /* Sliding CTA overlay card */
+            /* Slide-up CTA banner */
             #pico-cta-overlay {
                 position: fixed;
-                bottom: -500px;
-                left: 40px;
-                right: 40px;
+                bottom: -260px;
+                left: 16px;
+                right: 16px;
                 background: #FFFFFF;
-                border-radius: 32px;
-                border-top: 8px solid #10B981;
-                box-shadow: 0 -20px 60px rgba(0,0,0,0.25);
-                padding: 44px 30px;
+                border-radius: 20px;
+                border-top: 5px solid #10B981;
+                box-shadow: 0 -15px 40px rgba(0,0,0,0.2);
+                padding: 22px 18px;
                 text-align: center;
-                transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
-                z-index: 999999;
-                transform: none;
+                transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+                z-index: 100000;
             }
             #pico-cta-overlay.active {
-                transform: translateY(-560px) !important;
+                transform: translateY(-275px) !important;
             }
         """)
 
-        # Inject Hook, CTA and target the specific letter element
+        # 3. Add dynamic banner, trigger answer pop, and slide CTA
         page.evaluate(f"""() => {{
-            // 1. Hook Banner
+            // Add Hook Banner
             const banner = document.createElement('div');
             banner.id = 'pico-reel-hook';
             banner.innerHTML = `
@@ -157,70 +149,66 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
             `;
             document.body.prepend(banner);
 
-            // 2. CTA Card
+            // Add CTA Card
             const cta = document.createElement('div');
             cta.id = 'pico-cta-overlay';
             cta.innerHTML = `
-                <div style="font-size: 38px; font-weight: 800; color: #0F172A; margin-bottom: 12px;">PicoLearn 11+ Practice</div>
-                <div style="font-size: 26px; color: #475569; margin-bottom: 24px;">Smart questions that adapt to your child's level.</div>
-                <div style="display: inline-block; background: #10B981; color: #fff; font-size: 26px; font-weight: 700; padding: 16px 36px; border-radius: 18px;">
+                <div style="font-size: 18px; font-weight: 800; color: #0F172A; margin-bottom: 4px;">PicoLearn 11+ Practice</div>
+                <div style="font-size: 13px; color: #475569; margin-bottom: 14px;">Adaptive 11+ prep that builds exam confidence.</div>
+                <div style="display: inline-block; background: #10B981; color: #fff; font-size: 13px; font-weight: 700; padding: 10px 20px; border-radius: 10px;">
                     Try free at picolearn.co.uk
                 </div>
             `;
             document.body.appendChild(cta);
 
-            // 3. Highlight the correct choice element at 3.5s by searching for its text label
+            // Highlight target answer at 3.5s
             setTimeout(() => {{
                 const target = "{target_char}";
-                // Find any card or container starting with or displaying the letter badge
-                const allElements = Array.from(document.querySelectorAll('div, button, li, label'));
-                
-                // Find candidates that represent the answer row for that letter
-                const match = allElements.find(el => {{
-                    const text = el.innerText ? el.innerText.trim() : '';
-                    return (
-                        (text === target || text.startsWith(target + ' ') || text.startsWith(target + '\\n')) &&
-                        el.children.length <= 3 &&
-                        el.offsetHeight > 30 &&
-                        el.offsetHeight < 160
-                    );
+                const all = Array.from(document.querySelectorAll('div, button, li, label'));
+                const match = all.find(el => {{
+                    const t = (el.innerText || '').trim();
+                    return (t === target || t.startsWith(target + ' ') || t.startsWith(target + '\\n')) &&
+                           el.children.length <= 3 && el.offsetHeight > 25 && el.offsetHeight < 120;
                 }});
-
                 if (match) {{
-                    // Highlight the container row or button itself
-                    const container = match.closest('button') || match.closest('[class*="option"]') || match;
-                    container.classList.add('pico-highlight-correct');
+                    const card = match.closest('button') || match.closest('[class*="option"]') || match.parentElement;
+                    card.classList.add('pico-highlight-correct');
                 }}
             }}, 3500);
 
-            // 4. Slide up CTA at 5.5s
+            // Slide CTA up at 5.5s
             setTimeout(() => {{
                 cta.classList.add('active');
             }}, 5500);
         }}""")
 
-        # Wait to complete the 7.5 second sequence
-        page.wait_for_timeout(7500)
+        # 4. Record the 7-second sequence
+        page.wait_for_timeout(7000)
 
         video_path = page.video.path()
         context.close()
         browser.close()
 
-    print(f"Recorded raw WebM: {video_path}")
+    print(f"Raw capture saved: {video_path}")
 
-    # Convert to 1080x1920 MP4
-    print("Converting to Instagram H.264 MP4...")
+    # 5. Process with ffmpeg:
+    # - Trim initial page-load blank frames with -sseof or -ss
+    # - Scale up to 1080x1920 (9:16 Instagram standard)
+    # - Format with libx264 high profile
+    print("Trimming load time and scaling to 1080x1920 MP4...")
     ffmpeg_cmd = [
-        "ffmpeg", "-y", "-i", video_path,
-        "-vf", "scale=1080:1920",
+        "ffmpeg", "-y",
+        "-sseof", "-7.0",       # Grabs only the final 7 seconds where the animation took place
+        "-i", video_path,
+        "-vf", "scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=0xF8FAFC",
         "-c:v", "libx264", "-profile:v", "high", "-level:v", "4.0",
         "-pix_fmt", "yuv420p", "-r", "30",
         output_mp4
     ]
     subprocess.run(ffmpeg_cmd, check=True)
-    print("Video rendered successfully.")
+    print("Reel ready for Instagram.")
     return output_mp4
-
+    
 def upload_video_to_cdn(video_path: str) -> str:
     print("Uploading MP4 Reel to Cloudinary...")
     res = cloudinary.uploader.upload(
