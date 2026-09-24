@@ -35,6 +35,7 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         
+        # Exact mobile dimensions to guarantee single-column vertical layout
         context = browser.new_context(
             viewport={"width": 430, "height": 932},
             device_scale_factor=2,
@@ -45,12 +46,13 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
         )
         page = context.new_page()
         
-        # 1. Navigate and load
+        # 1. Navigate and wait until page is loaded
         page.goto(url, wait_until="networkidle")
         page.wait_for_timeout(1000)
 
         # 2. Inject mobile layout styling
         page.add_style_tag(content="""
+            /* Hide top site navigation and 'Check Answer' action buttons */
             header, nav, [class*="header"], [class*="navbar"], button:has-text("Check Answer"), [class*="hint"] { 
                 display: none !important; 
             }
@@ -63,6 +65,7 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
                 overflow: hidden !important;
             }
 
+            /* Top Hook Banner */
             #pico-reel-hook {
                 position: fixed;
                 top: 16px;
@@ -101,6 +104,7 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
                 to   { width: 0%; background: #EF4444; }
             }
 
+            /* Highlight correct answer card */
             .pico-highlight-correct {
                 background-color: #10B981 !important;
                 color: #FFFFFF !important;
@@ -113,6 +117,7 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
                 color: #FFFFFF !important;
             }
 
+            /* Slide-up CTA banner */
             #pico-cta-overlay {
                 position: fixed;
                 bottom: -260px;
@@ -132,8 +137,9 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
             }
         """)
 
-        # 3. Add DOM overlays and animations
+        # 3. Add dynamic banner, trigger answer pop, and slide CTA
         page.evaluate(f"""() => {{
+            // Add Hook Banner
             const banner = document.createElement('div');
             banner.id = 'pico-reel-hook';
             banner.innerHTML = `
@@ -142,6 +148,7 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
             `;
             document.body.prepend(banner);
 
+            // Add CTA Card
             const cta = document.createElement('div');
             cta.id = 'pico-cta-overlay';
             cta.innerHTML = `
@@ -153,6 +160,7 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
             `;
             document.body.appendChild(cta);
 
+            // Highlight target answer at 3.5s
             setTimeout(() => {{
                 const target = "{target_char}";
                 const all = Array.from(document.querySelectorAll('div, button, li, label'));
@@ -167,11 +175,13 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
                 }}
             }}, 3500);
 
+            // Slide CTA up at 5.5s
             setTimeout(() => {{
                 cta.classList.add('active');
             }}, 5500);
         }}""")
 
+        # Record the 7-second sequence
         page.wait_for_timeout(7000)
 
         video_path = page.video.path()
@@ -180,44 +190,57 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
 
     print(f"Raw capture saved: {video_path}")
 
-    # 4. Generate ticking countdown and success chime using clean ffmpeg filtergraph
-    print("Generating ticking audio and rendering final MP4...")
+    # 4. Render final MP4 with music and chime
+    audio_track = "assets/audio.mp3"
+    print("Mixing audio and scaling to 1080x1920 MP4...")
 
-    filter_complex = (
-        # Video scaling and centering on 1080x1920 canvas
-        "[0:v]scale=1080:1920:force_original_aspect_ratio=decrease,"
-        "pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=0xF8FAFC[v];"
-        
-        # Audio track 1: Crisp clock ticks every 0.5s from 0s to 3.5s
-        "sine=f=1200:d=3.5,"
-        "volume=enable='between(mod(t,0.5),0,0.04)':volume=1.0:eval=frame,"
-        "volume=enable='not(between(mod(t,0.5),0,0.04))':volume=0.0:eval=frame[clicks];"
-        
-        # Audio track 2: Success bell chime from 3.5s to 6.5s
-        "sine=f=880:d=3.0,"
-        "volume='exp(-1.5*(t-0))':eval=frame,"
-        "adelay=3500|3500[bell];"
-        
-        # Mix clicks and chime together
-        "[clicks][bell]amix=inputs=2:dropout_transition=0:normalize=0[a]"
-    )
+    if os.path.exists(audio_track):
+        filter_complex = (
+            "[0:v]scale=1080:1920:force_original_aspect_ratio=decrease,"
+            "pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=0xF8FAFC[v];"
+            "[1:a]aloop=loop=-1:size=2e+09,atrim=0:7,volume=0.4[music];"
+            "sine=f=880:d=2.5,volume='exp(-1.5*t)':eval=frame,adelay=3500|3500[bell];"
+            "[music][bell]amix=inputs=2:duration=first:dropout_transition=0[a]"
+        )
+        ffmpeg_cmd = [
+            "ffmpeg", "-y",
+            "-sseof", "-7.0",
+            "-i", video_path,
+            "-i", audio_track,
+            "-filter_complex", filter_complex,
+            "-map", "[v]",
+            "-map", "[a]",
+            "-c:v", "libx264", "-profile:v", "high", "-level:v", "4.0",
+            "-pix_fmt", "yuv420p", "-r", "30",
+            "-c:a", "aac", "-b:a", "192k",
+            "-t", "7.0",
+            output_mp4
+        ]
+    else:
+        # Graceful fallback: synthesize bell chime only if assets/audio.mp3 is missing
+        filter_complex = (
+            "[0:v]scale=1080:1920:force_original_aspect_ratio=decrease,"
+            "pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=0xF8FAFC[v];"
+            "sine=f=880:d=2.5,volume='exp(-1.5*t)':eval=frame,adelay=3500|3500[a]"
+        )
+        ffmpeg_cmd = [
+            "ffmpeg", "-y",
+            "-sseof", "-7.0",
+            "-i", video_path,
+            "-filter_complex", filter_complex,
+            "-map", "[v]",
+            "-map", "[a]",
+            "-c:v", "libx264", "-profile:v", "high", "-level:v", "4.0",
+            "-pix_fmt", "yuv420p", "-r", "30",
+            "-c:a", "aac", "-b:a", "128k",
+            "-t", "7.0",
+            output_mp4
+        ]
 
-    ffmpeg_cmd = [
-        "ffmpeg", "-y",
-        "-sseof", "-7.0",
-        "-i", video_path,
-        "-filter_complex", filter_complex,
-        "-map", "[v]",
-        "-map", "[a]",
-        "-c:v", "libx264", "-profile:v", "high", "-level:v", "4.0",
-        "-pix_fmt", "yuv420p", "-r", "30",
-        "-c:a", "aac", "-b:a", "128k", "-shortest",
-        output_mp4
-    ]
     subprocess.run(ffmpeg_cmd, check=True)
-    print("Reel with audio rendered successfully.")
+    print("Reel ready for Instagram.")
     return output_mp4
-    
+
 def upload_video_to_cdn(video_path: str) -> str:
     print("Uploading MP4 Reel to Cloudinary...")
     res = cloudinary.uploader.upload(
@@ -229,7 +252,6 @@ def upload_video_to_cdn(video_path: str) -> str:
     )
     url = res["secure_url"]
     print(f"Video hosted: {url}")
-    # Wait 8s for CDN edge warm-up
     time.sleep(8)
     return url
 
@@ -259,7 +281,7 @@ def publish_reel_to_instagram(video_url: str, caption: str):
         "access_token": ACCESS_TOKEN
     }
 
-    max_attempts = 24  # Poll up to 2 minutes (24 * 5s)
+    max_attempts = 24  # Poll up to 2 minutes
     is_ready = False
 
     for attempt in range(1, max_attempts + 1):
@@ -308,12 +330,10 @@ def main():
         print("No records found in Google Sheet.")
         return
 
-    # Normalise headers for safe column lookup
     headers = [str(h).strip().lower() for h in sheet.row_values(1)]
     status_col = headers.index("status") + 1 if "status" in headers else 6
 
     for idx, row in enumerate(records, start=2):
-        # Normalise dictionary keys to lowercase with underscores
         clean_row = {str(k).strip().lower().replace(" ", "_"): v for k, v in row.items()}
 
         if str(clean_row.get("status", "")).strip().upper() == "READY":
@@ -346,7 +366,6 @@ def main():
             video_cdn_url = upload_video_to_cdn(mp4_file)
             publish_reel_to_instagram(video_cdn_url, caption)
 
-            # Update row status to POSTED
             sheet.update_cell(idx, status_col, "POSTED")
             print(f"Row {idx} updated to POSTED.")
             break
