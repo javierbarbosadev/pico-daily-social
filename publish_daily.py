@@ -180,33 +180,42 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
 
     print(f"Raw capture saved: {video_path}")
 
-    # 4. Generate ticking audio effect and render Instagram MP4
-    print("Generating clock ticking audio and rendering final MP4...")
-    
-    # Audio graph:
-    # - 7 clicks (one every 0.5s from 0.0s to 3.0s)
-    # - 1 chime at 3.5s when the answer is revealed
-    audio_filter = (
-        "eval='click=sin(2*PI*1200*t)*exp(-30*mod(t,0.5))*(t<3.5);"
-        "bell=sin(2*PI*880*t)*exp(-2*(t-3.5))*(t>=3.5)*(t<6.5);"
-        "click+0.6*bell'"
+    # 4. Generate ticking countdown and success chime using clean ffmpeg filtergraph
+    print("Generating ticking audio and rendering final MP4...")
+
+    filter_complex = (
+        # Video scaling and centering on 1080x1920 canvas
+        "[0:v]scale=1080:1920:force_original_aspect_ratio=decrease,"
+        "pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=0xF8FAFC[v];"
+        
+        # Audio track 1: Crisp clock ticks every 0.5s from 0s to 3.5s
+        "sine=f=1200:d=3.5,"
+        "volume=enable='between(mod(t,0.5),0,0.04)':volume=1.0:eval=frame,"
+        "volume=enable='not(between(mod(t,0.5),0,0.04))':volume=0.0:eval=frame[clicks];"
+        
+        # Audio track 2: Success bell chime from 3.5s to 6.5s
+        "sine=f=880:d=3.0,"
+        "volume='exp(-1.5*(t-0))':eval=frame,"
+        "adelay=3500|3500[bell];"
+        
+        # Mix clicks and chime together
+        "[clicks][bell]amix=inputs=2:dropout_transition=0:normalize=0[a]"
     )
 
     ffmpeg_cmd = [
         "ffmpeg", "-y",
         "-sseof", "-7.0",
         "-i", video_path,
-        "-f", "lavfi", "-t", "7.0", "-i", f"aevalsrc={audio_filter}:s=44100",
-        "-filter_complex", "[0:v]scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=0xF8FAFC[v]",
+        "-filter_complex", filter_complex,
         "-map", "[v]",
-        "-map", "1:a",
+        "-map", "[a]",
         "-c:v", "libx264", "-profile:v", "high", "-level:v", "4.0",
         "-pix_fmt", "yuv420p", "-r", "30",
         "-c:a", "aac", "-b:a", "128k", "-shortest",
         output_mp4
     ]
     subprocess.run(ffmpeg_cmd, check=True)
-    print("Reel with ticking audio ready for Instagram.")
+    print("Reel with audio rendered successfully.")
     return output_mp4
     
 def upload_video_to_cdn(video_path: str) -> str:
