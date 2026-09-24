@@ -242,46 +242,49 @@ def main():
     sheet = client.open("PicoLearn Social Queue").sheet1
     records = sheet.get_all_records()
 
-for idx, row in enumerate(records, start=2):
-    # 1. Normalise all dictionary keys to lowercase with underscores
-    clean_row = {str(k).strip().lower().replace(" ", "_"): v for k, v in row.items()}
+    if not records:
+        print("No records found in Google Sheet.")
+        return
 
-    # 2. Check status safely
-    if str(clean_row.get("status", "")).strip().upper() == "READY":
-        # 3. Pull target_url or fallbacks
-        url = (
-            clean_row.get("target_url")
-            or clean_row.get("preview_url")
-            or clean_row.get("url")
-            or clean_row.get("question_url")
-            or clean_row.get("link")
-        )
+    # Normalise headers for safe column lookup
+    headers = [str(h).strip().lower() for h in sheet.row_values(1)]
+    status_col = headers.index("status") + 1 if "status" in headers else 6
 
-        # 4. Guard against missing or blank URLs
-        if not url or not str(url).strip().startswith("http"):
-            print(f"Skipping row {idx}: URL is missing or invalid. Columns found: {list(clean_row.keys())}")
-            continue
+    for idx, row in enumerate(records, start=2):
+        # Normalise dictionary keys to lowercase with underscores
+        clean_row = {str(k).strip().lower().replace(" ", "_"): v for k, v in row.items()}
 
-        caption = (
-            clean_row.get("caption")
-            or "Can your child solve this daily 11+ challenge? Drop your answer below! 👇 #11plus #11plusprep #grammarschool"
-        )
-        
-        correct_answer = (
-            clean_row.get("answer")
-            or clean_row.get("correct_answer")
-            or clean_row.get("correct_option")
-            or "B"
-        )
+        if str(clean_row.get("status", "")).strip().upper() == "READY":
+            url = (
+                clean_row.get("target_url")
+                or clean_row.get("preview_url")
+                or clean_row.get("url")
+                or clean_row.get("question_url")
+                or clean_row.get("link")
+            )
 
-            print(f"Processing Reel row {idx} with URL: {url}")
-            mp4_file = record_reel_video(url, correct_letter=correct_answer)
+            if not url or not str(url).strip().startswith("http"):
+                print(f"Skipping row {idx}: URL is missing or invalid. Columns found: {list(clean_row.keys())}")
+                continue
+
+            caption = (
+                clean_row.get("caption")
+                or "Can your child solve this daily 11+ challenge? Drop your answer below! 👇 #11plus #11plusprep #grammarschool"
+            )
+
+            correct_answer = (
+                clean_row.get("answer")
+                or clean_row.get("correct_answer")
+                or clean_row.get("correct_option")
+                or "B"
+            )
+
+            print(f"Processing Reel row {idx} with URL: {url} (Answer: {correct_answer})")
+            mp4_file = record_reel_video(str(url).strip(), correct_letter=str(correct_answer).strip())
             video_cdn_url = upload_video_to_cdn(mp4_file)
             publish_reel_to_instagram(video_cdn_url, caption)
 
-            # Locate status column and update to POSTED
-            headers = [h.lower() for h in sheet.row_values(1)]
-            status_col = headers.index("status") + 1
+            # Update row status to POSTED
             sheet.update_cell(idx, status_col, "POSTED")
             print(f"Row {idx} updated to POSTED.")
             break
