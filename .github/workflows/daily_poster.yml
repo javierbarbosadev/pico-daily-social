@@ -2,8 +2,8 @@ name: Daily Instagram Publisher
 
 on:
   schedule:
-    # 06:15 UTC = 07:15 UK BST
-    - cron: '15 6 * * *'
+    - cron: '17 7 * * *'
+      timezone: Europe/London
   workflow_dispatch:
 
 jobs:
