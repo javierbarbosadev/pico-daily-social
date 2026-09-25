@@ -35,7 +35,7 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         
-        # Exact mobile dimensions to guarantee single-column vertical layout
+        # Real mobile dimensions to guarantee single-column vertical layout
         context = browser.new_context(
             viewport={"width": 430, "height": 932},
             device_scale_factor=2,
@@ -50,33 +50,75 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
         page.goto(url, wait_until="networkidle")
         page.wait_for_timeout(1000)
 
-        # 2. Inject mobile layout styling
+        # 2. Inject high-contrast mobile styling and bold typography
         page.add_style_tag(content="""
-            /* Hide top site navigation and 'Check Answer' action buttons */
-            header, nav, [class*="header"], [class*="navbar"], button:has-text("Check Answer"), [class*="hint"] { 
+            /* Hide web app navigation, sub-headers, hints, and buttons */
+            header, nav, [class*="header"], [class*="navbar"], 
+            [class*="hint"], [class*="category"], [class*="topic"], 
+            button:has-text("Check Answer"), button:has-text("Hint") { 
                 display: none !important; 
             }
 
-            body {
-                background-color: #F8FAFC !important;
-                padding-top: 90px !important;
-                padding-left: 16px !important;
-                padding-right: 16px !important;
+            html, body {
+                background: #F8FAFC !important;
+                margin: 0 !important;
+                padding: 0 !important;
                 overflow: hidden !important;
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+            }
+
+            /* Container centering */
+            main, [class*="max-w"], body > div {
+                max-width: 100% !important;
+                width: 100% !important;
+                margin: 0 !important;
+                padding: 100px 20px 20px 20px !important;
+                box-sizing: border-box !important;
+            }
+
+            /* Large bold question typography */
+            h1, h2, h3, [class*="question-text"], p {
+                font-size: 24px !important;
+                line-height: 1.35 !important;
+                font-weight: 800 !important;
+                color: #0F172A !important;
+            }
+
+            /* Vertical single column for answers */
+            [class*="grid"], [class*="options-container"] {
+                display: flex !important;
+                flex-direction: column !important;
+                gap: 14px !important;
+                margin-top: 24px !important;
+            }
+
+            /* Thick tap-friendly option cards */
+            button, [class*="option-card"], [class*="choice"] {
+                min-height: 64px !important;
+                padding: 12px 18px !important;
+                font-size: 19px !important;
+                font-weight: 700 !important;
+                border-radius: 16px !important;
+                border: 2px solid #CBD5E1 !important;
+                background: #FFFFFF !important;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.04) !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: flex-start !important;
             }
 
             /* Top Hook Banner */
             #pico-reel-hook {
                 position: fixed;
-                top: 16px;
-                left: 16px;
-                right: 16px;
+                top: 14px;
+                left: 14px;
+                right: 14px;
                 background: #0F172A;
                 color: #FFFFFF;
-                padding: 14px 18px;
-                border-radius: 14px;
+                padding: 14px 16px;
+                border-radius: 16px;
                 font-size: 16px;
-                font-weight: 700;
+                font-weight: 800;
                 text-align: center;
                 box-shadow: 0 10px 25px rgba(0,0,0,0.18);
                 z-index: 99999;
@@ -104,51 +146,63 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
                 to   { width: 0%; background: #EF4444; }
             }
 
-            /* Highlight correct answer card */
+            /* Interactive micro-prompt under answers */
+            #pico-solve-prompt {
+                margin-top: 18px;
+                text-align: center;
+                font-size: 14px;
+                font-weight: 700;
+                color: #64748B;
+            }
+
+            /* Answer reveal state */
             .pico-highlight-correct {
                 background-color: #10B981 !important;
                 color: #FFFFFF !important;
                 border: 3px solid #059669 !important;
-                transform: scale(1.03) !important;
-                transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
-                box-shadow: 0 0 20px rgba(16, 185, 129, 0.5) !important;
+                transform: scale(1.02) !important;
+                transition: all 0.3s ease-out !important;
+                box-shadow: 0 0 24px rgba(16, 185, 129, 0.45) !important;
             }
             .pico-highlight-correct * {
                 color: #FFFFFF !important;
             }
 
-            /* Slide-up CTA banner */
+            /* Sliding CTA overlay card */
             #pico-cta-overlay {
                 position: fixed;
-                bottom: -260px;
-                left: 16px;
-                right: 16px;
+                bottom: -280px;
+                left: 14px;
+                right: 14px;
                 background: #FFFFFF;
-                border-radius: 20px;
+                border-radius: 24px;
                 border-top: 5px solid #10B981;
-                box-shadow: 0 -15px 40px rgba(0,0,0,0.2);
-                padding: 22px 18px;
+                box-shadow: 0 -15px 45px rgba(0,0,0,0.25);
+                padding: 24px 20px;
                 text-align: center;
                 transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
                 z-index: 100000;
             }
             #pico-cta-overlay.active {
-                transform: translateY(-275px) !important;
+                transform: translateY(-295px) !important;
             }
         """)
 
         # 3. Add dynamic banner, trigger answer pop, and slide CTA
         page.evaluate(f"""() => {{
-            // Add Hook Banner
             const banner = document.createElement('div');
             banner.id = 'pico-reel-hook';
             banner.innerHTML = `
-                <div>⏱️ Can your child solve this?</div>
+                <div>⏱️ Can your Year 5 child solve this?</div>
                 <div id="pico-timer-wrapper"><div id="pico-timer-bar"></div></div>
             `;
             document.body.prepend(banner);
 
-            // Add CTA Card
+            const prompt = document.createElement('div');
+            prompt.id = 'pico-solve-prompt';
+            prompt.innerText = '⏸️ Pause to solve • Drop your answer below 👇';
+            document.body.appendChild(prompt);
+
             const cta = document.createElement('div');
             cta.id = 'pico-cta-overlay';
             cta.innerHTML = `
@@ -217,7 +271,7 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
             output_mp4
         ]
     else:
-        # Graceful fallback: synthesize bell chime only if assets/audio.mp3 is missing
+        # Clean chime fallback if assets/audio.mp3 isn't uploaded yet
         filter_complex = (
             "[0:v]scale=1080:1920:force_original_aspect_ratio=decrease,"
             "pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=0xF8FAFC[v];"
