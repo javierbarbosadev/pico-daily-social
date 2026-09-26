@@ -35,7 +35,7 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         
-        # Native 9:16 aspect ratio (540x960) prevents side padding bars completely
+        # 540x960 9:16 aspect ratio avoids side pillarbox bars
         context = browser.new_context(
             viewport={"width": 540, "height": 960},
             device_scale_factor=2,
@@ -48,7 +48,7 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
         page.goto(url, wait_until="networkidle")
         page.wait_for_timeout(1000)
 
-        # 1. Remove unwanted UI elements directly from DOM using valid CSS & text filtering
+        # 1. Clean out clutter directly from DOM
         page.evaluate("""() => {
             const removeSelectors = [
                 'header', 'nav', '[class*="header"]', '[class*="navbar"]',
@@ -58,17 +58,16 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
                 document.querySelectorAll(sel).forEach(el => el.remove());
             });
 
-            // Safely remove Check Answer and Hint buttons
-            document.querySelectorAll('button').forEach(btn => {
-                const txt = (btn.innerText || '').trim();
-                if (txt.includes('Check Answer') || txt.includes('Hint')) {
-                    btn.remove();
+            document.querySelectorAll('button, div, span, p').forEach(el => {
+                const txt = (el.innerText || '').trim().toLowerCase();
+                if (txt === 'need a hint?' || txt === 'hint' || txt.includes('check answer')) {
+                    const container = el.closest('button') || el.closest('div') || el;
+                    container.remove();
                 }
             });
         }""")
-        
 
-        # 2. Inject Instagram-optimised full-bleed styles
+        # 2. Inject styles
         page.add_style_tag(content="""
             html, body {
                 width: 540px !important;
@@ -84,7 +83,6 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
                 align-items: center !important;
             }
 
-            /* Expand question card to fill the screen width */
             main, [class*="max-w"], body > div {
                 width: 480px !important;
                 max-width: 480px !important;
@@ -93,7 +91,7 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
                 box-sizing: border-box !important;
             }
 
-            /* Instagram Safe-Zone Hook Banner (Cleared below IG's audio tag) */
+            /* Safe-zone Hook Banner */
             #pico-reel-hook {
                 position: fixed;
                 top: 110px;
@@ -132,7 +130,7 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
                 to   { width: 0%; background: #EF4444; }
             }
 
-            /* Make Question Prominent */
+            /* Question text */
             h1, h2, h3, [class*="question-text"], p {
                 font-size: 26px !important;
                 line-height: 1.35 !important;
@@ -142,7 +140,7 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
                 margin-bottom: 20px !important;
             }
 
-            /* Answer List Full Width */
+            /* Vertical answers */
             [class*="grid"], [class*="options-container"] {
                 display: flex !important;
                 flex-direction: column !important;
@@ -165,21 +163,7 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
                 box-sizing: border-box !important;
             }
 
-            /* Correct Answer Pop */
-            .pico-highlight-correct {
-                background-color: #10B981 !important;
-                color: #FFFFFF !important;
-                border-color: #059669 !important;
-                transform: scale(1.03) !important;
-                transition: all 0.3s ease-out !important;
-                box-shadow: 0 0 25px rgba(16, 185, 129, 0.5) !important;
-            }
-            .pico-highlight-correct * {
-                color: #FFFFFF !important;
-            }
-
-            /* Interactive callout pill placed directly under options */
-            /* Floating pill pinned just above Instagram's bottom caption zone */
+            /* Floating prompt right above Instagram's bottom bar */
             #pico-solve-prompt {
                 position: fixed !important;
                 bottom: 160px !important;
@@ -196,7 +180,20 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
                 z-index: 99999 !important;
             }
 
-            /* Bottom CTA Card (positioned above IG caption zone) */
+            /* Highlight answer */
+            .pico-highlight-correct {
+                background-color: #10B981 !important;
+                color: #FFFFFF !important;
+                border-color: #059669 !important;
+                transform: scale(1.03) !important;
+                transition: all 0.3s ease-out !important;
+                box-shadow: 0 0 25px rgba(16, 185, 129, 0.5) !important;
+            }
+            .pico-highlight-correct * {
+                color: #FFFFFF !important;
+            }
+
+            /* CTA card */
             #pico-cta-overlay {
                 position: fixed;
                 bottom: -320px;
@@ -216,7 +213,7 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
             }
         """)
 
-        # 3. Inject overlays and timers
+        # 3. Inject interactive elements and schedule triggers
         page.evaluate(f"""() => {{
             const banner = document.createElement('div');
             banner.id = 'pico-reel-hook';
@@ -226,28 +223,10 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
             `;
             document.body.prepend(banner);
 
-            // Remove hint text/buttons so they do not push content down
-            document.querySelectorAll('button, div, span, p').forEach(el => {
-                const txt = (el.innerText || '').trim().toLowerCase();
-                if (txt === 'need a hint?' || txt === 'hint') {
-                    const container = el.closest('button') || el.closest('div') || el;
-                    container.remove();
-                }
-            });
-
-            // Append prompt directly to body so it floats right above the bottom UI
             const prompt = document.createElement('div');
             prompt.id = 'pico-solve-prompt';
             prompt.innerText = '👆 Hold screen to pause for time • Answer below 👇';
             document.body.appendChild(prompt);
-
-            const options = document.querySelectorAll('button, [class*="option"], [class*="choice"]');
-            if (options.length > 0) {
-                const lastOption = options[options.length - 1];
-                lastOption.parentNode.insertBefore(prompt, lastOption.nextSibling);
-            } else {
-                document.body.appendChild(prompt);
-            }
 
             const cta = document.createElement('div');
             cta.id = 'pico-cta-overlay';
@@ -260,7 +239,6 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
             `;
             document.body.appendChild(cta);
 
-            // Highlight target answer at 3.5s
             setTimeout(() => {{
                 const target = "{target_char}";
                 const all = Array.from(document.querySelectorAll('div, button, li, label'));
@@ -275,7 +253,6 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
                 }}
             }}, 3500);
 
-            // Slide CTA up at 5.5s
             setTimeout(() => {{
                 cta.classList.add('active');
             }}, 5500);
@@ -289,7 +266,7 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
 
     print(f"Raw capture saved: {video_path}")
 
-    # 4. ffmpeg upscale 540x960 1:1 into 1080x1920 (No cropping, zero pillarboxing)
+    # 4. ffmpeg upscale to 1080x1920
     audio_track = "assets/audio.mp3"
     print("Encoding final full-bleed 1080x1920 MP4...")
 
@@ -336,7 +313,7 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
     subprocess.run(ffmpeg_cmd, check=True)
     print("Reel ready for Instagram.")
     return output_mp4
-
+    
     
 def upload_video_to_cdn(video_path: str) -> str:
     print("Uploading MP4 Reel to Cloudinary...")
