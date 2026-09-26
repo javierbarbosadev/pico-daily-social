@@ -62,64 +62,58 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
             });
         }""")
 
-        # 2. Inject styles
+        # 2. Inject structured vertical layout styles
         page.add_style_tag(content="""
             html, body {
                 width: 540px !important;
                 height: 960px !important;
                 background-color: #F8FAFC !important;
                 margin: 0 !important;
-                padding: 0 !important;
+                padding: 100px 24px 130px 24px !important;
+                box-sizing: border-box !important;
                 overflow: hidden !important;
                 font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+                display: flex !important;
+                flex-direction: column !important;
+                justify-content: flex-start !important;
+                align-items: stretch !important;
             }
 
-            /* Safely hide hint text containers without nuking layout */
-            [class*="hint"] {
+            /* Hide app decorations, headers, hints */
+            [class*="hint"], [class*="topic"], [class*="difficulty"], [class*="progress"] {
                 display: none !important;
             }
 
-            /* Center question card container nicely between hook and prompt */
-            main, [class*="max-w"], body > div {
-                width: 480px !important;
-                max-width: 480px !important;
-                margin: 180px auto 0 auto !important;
-                padding: 0 16px !important;
-                box-sizing: border-box !important;
-                display: block !important;
-            }
-
-            /* Safe-zone Hook Banner */
+            /* 1. Hook Banner at the top of our container */
             #pico-reel-hook {
-                position: fixed;
-                top: 100px;
-                left: 20px;
-                right: 20px;
-                background: #0F172A;
-                color: #FFFFFF;
-                padding: 14px 18px;
-                border-radius: 16px;
-                font-size: 18px;
-                font-weight: 800;
-                text-align: center;
-                box-shadow: 0 10px 25px rgba(0,0,0,0.22);
-                z-index: 999999;
+                width: 100% !important;
+                background: #0F172A !important;
+                color: #FFFFFF !important;
+                padding: 14px 16px !important;
+                border-radius: 16px !important;
+                font-size: 17px !important;
+                font-weight: 800 !important;
+                text-align: center !important;
+                box-shadow: 0 10px 25px rgba(0,0,0,0.18) !important;
+                box-sizing: border-box !important;
+                margin-bottom: 20px !important;
+                flex-shrink: 0 !important;
             }
 
             #pico-timer-wrapper {
-                width: 100%;
-                height: 6px;
-                background: #334155;
-                border-radius: 3px;
-                margin-top: 10px;
-                overflow: hidden;
+                width: 100% !important;
+                height: 6px !important;
+                background: #334155 !important;
+                border-radius: 3px !important;
+                margin-top: 10px !important;
+                overflow: hidden !important;
             }
 
             #pico-timer-bar {
-                height: 100%;
-                background: #10B981;
-                width: 100%;
-                animation: picoCountdown 3.5s linear forwards;
+                height: 100% !important;
+                background: #10B981 !important;
+                width: 100% !important;
+                animation: picoCountdown 3.5s linear forwards !important;
             }
 
             @keyframes picoCountdown {
@@ -128,91 +122,101 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
                 to   { width: 0%; background: #EF4444; }
             }
 
-            /* Question text styling */
-            h1, h2, h3, [class*="question-text"], p {
-                font-size: 24px !important;
-                line-height: 1.35 !important;
-                font-weight: 800 !important;
-                color: #0F172A !important;
-                margin-bottom: 16px !important;
+            /* 2. Main Question Container */
+            main, [class*="max-w"], body > div:not(#pico-reel-hook):not(#pico-solve-prompt):not(#pico-cta-overlay) {
+                width: 100% !important;
+                max-width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                box-sizing: border-box !important;
+                display: flex !important;
+                flex-direction: column !important;
             }
 
-            /* Vertical answers */
+            h1, h2, h3, [class*="question-text"], p {
+                font-size: 21px !important;
+                line-height: 1.3 !important;
+                font-weight: 800 !important;
+                color: #0F172A !important;
+                margin: 0 0 16px 0 !important;
+                text-align: center !important;
+            }
+
+            /* Single-column answers with tight spacing */
             [class*="grid"], [class*="options-container"] {
                 display: flex !important;
                 flex-direction: column !important;
-                gap: 12px !important;
+                gap: 10px !important;
                 width: 100% !important;
+                margin: 0 !important;
             }
 
             button, [class*="option-card"], [class*="choice"] {
                 width: 100% !important;
-                min-height: 60px !important;
-                padding: 12px 18px !important;
-                font-size: 19px !important;
+                min-height: 52px !important;
+                padding: 8px 16px !important;
+                font-size: 18px !important;
                 font-weight: 700 !important;
-                border-radius: 14px !important;
+                border-radius: 12px !important;
                 border: 2px solid #E2E8F0 !important;
                 background: #FFFFFF !important;
-                box-shadow: 0 4px 10px rgba(0,0,0,0.04) !important;
+                box-shadow: 0 2px 6px rgba(0,0,0,0.04) !important;
                 display: flex !important;
                 align-items: center !important;
                 box-sizing: border-box !important;
             }
 
-            /* Floating prompt right above Instagram's bottom bar */
-            #pico-solve-prompt {
-                position: fixed !important;
-                bottom: 150px !important;
-                left: 50% !important;
-                transform: translateX(-50%) !important;
-                background: #0F172A !important;
-                color: #FFFFFF !important;
-                padding: 10px 18px !important;
-                border-radius: 9999px !important;
-                font-size: 13px !important;
-                font-weight: 700 !important;
-                white-space: nowrap !important;
-                box-shadow: 0 8px 20px rgba(0,0,0,0.25) !important;
-                z-index: 99999 !important;
-            }
-
-            /* Highlight answer */
+            /* Highlight correct answer */
             .pico-highlight-correct {
                 background-color: #10B981 !important;
                 color: #FFFFFF !important;
                 border-color: #059669 !important;
                 transform: scale(1.02) !important;
                 transition: all 0.3s ease-out !important;
-                box-shadow: 0 0 25px rgba(16, 185, 129, 0.5) !important;
+                box-shadow: 0 0 20px rgba(16, 185, 129, 0.45) !important;
             }
             .pico-highlight-correct * {
                 color: #FFFFFF !important;
             }
 
-            /* CTA card */
+            /* 3. Bottom hold prompt pill sitting right below the options */
+            #pico-solve-prompt {
+                margin: 18px auto 0 auto !important;
+                background: #0F172A !important;
+                color: #FFFFFF !important;
+                padding: 10px 18px !important;
+                border-radius: 9999px !important;
+                font-size: 13px !important;
+                font-weight: 700 !important;
+                text-align: center !important;
+                width: fit-content !important;
+                box-shadow: 0 6px 16px rgba(0,0,0,0.18) !important;
+                flex-shrink: 0 !important;
+            }
+
+            /* CTA slide-up overlay */
             #pico-cta-overlay {
-                position: fixed;
-                bottom: -320px;
-                left: 20px;
-                right: 20px;
-                background: #FFFFFF;
-                border-radius: 24px;
-                border-top: 6px solid #10B981;
-                box-shadow: 0 -15px 45px rgba(0,0,0,0.25);
-                padding: 24px;
-                text-align: center;
-                transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
-                z-index: 1000000;
+                position: fixed !important;
+                bottom: -320px !important;
+                left: 20px !important;
+                right: 20px !important;
+                background: #FFFFFF !important;
+                border-radius: 24px !important;
+                border-top: 6px solid #10B981 !important;
+                box-shadow: 0 -15px 45px rgba(0,0,0,0.25) !important;
+                padding: 24px !important;
+                text-align: center !important;
+                transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1) !important;
+                z-index: 1000000 !important;
             }
             #pico-cta-overlay.active {
                 transform: translateY(-440px) !important;
             }
         """)
-        
 
-        # 3. Inject interactive elements and schedule triggers
+        # 3. Inject elements in exact flow order
         page.evaluate(f"""() => {{
+            // Prepend Hook Banner to the very top of body
             const banner = document.createElement('div');
             banner.id = 'pico-reel-hook';
             banner.innerHTML = `
@@ -221,11 +225,13 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
             `;
             document.body.prepend(banner);
 
+            // Append Prompt Pill right at the bottom of the body flow
             const prompt = document.createElement('div');
             prompt.id = 'pico-solve-prompt';
             prompt.innerText = '👆 Hold screen to pause for time • Answer below 👇';
             document.body.appendChild(prompt);
 
+            // Append Sliding CTA card
             const cta = document.createElement('div');
             cta.id = 'pico-cta-overlay';
             cta.innerHTML = `
@@ -255,6 +261,7 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
                 cta.classList.add('active');
             }}, 5500);
         }}""")
+        
 
         page.wait_for_timeout(7000)
 
