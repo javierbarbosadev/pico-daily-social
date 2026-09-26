@@ -48,21 +48,16 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
         page.goto(url, wait_until="networkidle")
         page.wait_for_timeout(1000)
 
-        # 1. Clean out clutter directly from DOM
+        # 1. Clean out only explicit buttons and nav bars, preserving all content divs
         page.evaluate("""() => {
-            const removeSelectors = [
-                'header', 'nav', '[class*="header"]', '[class*="navbar"]',
-                '[class*="hint"]', '[class*="topic"]', '[class*="difficulty"]'
-            ];
-            removeSelectors.forEach(sel => {
-                document.querySelectorAll(sel).forEach(el => el.remove());
-            });
+            // Remove top app navigation bar if present
+            document.querySelectorAll('header, nav').forEach(el => el.remove());
 
-            document.querySelectorAll('button, div, span, p').forEach(el => {
-                const txt = (el.innerText || '').trim().toLowerCase();
-                if (txt === 'need a hint?' || txt === 'hint' || txt.includes('check answer')) {
-                    const container = el.closest('button') || el.closest('div') || el;
-                    container.remove();
+            // Remove only specific hint/check action buttons, never parent containers
+            document.querySelectorAll('button, a').forEach(btn => {
+                const txt = (btn.innerText || '').trim().toLowerCase();
+                if (txt.includes('hint') || txt.includes('check answer')) {
+                    btn.remove();
                 }
             });
         }""")
@@ -77,42 +72,45 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
                 padding: 0 !important;
                 overflow: hidden !important;
                 font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
-                display: flex !important;
-                flex-direction: column !important;
-                justify-content: center !important;
-                align-items: center !important;
             }
 
+            /* Safely hide hint text containers without nuking layout */
+            [class*="hint"] {
+                display: none !important;
+            }
+
+            /* Center question card container nicely between hook and prompt */
             main, [class*="max-w"], body > div {
                 width: 480px !important;
                 max-width: 480px !important;
-                margin: 0 auto !important;
-                padding: 0 !important;
+                margin: 180px auto 0 auto !important;
+                padding: 0 16px !important;
                 box-sizing: border-box !important;
+                display: block !important;
             }
 
             /* Safe-zone Hook Banner */
             #pico-reel-hook {
                 position: fixed;
-                top: 110px;
-                left: 24px;
-                right: 24px;
+                top: 100px;
+                left: 20px;
+                right: 20px;
                 background: #0F172A;
                 color: #FFFFFF;
-                padding: 16px 20px;
-                border-radius: 18px;
-                font-size: 19px;
+                padding: 14px 18px;
+                border-radius: 16px;
+                font-size: 18px;
                 font-weight: 800;
                 text-align: center;
-                box-shadow: 0 12px 30px rgba(0,0,0,0.22);
+                box-shadow: 0 10px 25px rgba(0,0,0,0.22);
                 z-index: 999999;
             }
 
             #pico-timer-wrapper {
                 width: 100%;
-                height: 7px;
+                height: 6px;
                 background: #334155;
-                border-radius: 4px;
+                border-radius: 3px;
                 margin-top: 10px;
                 overflow: hidden;
             }
@@ -130,14 +128,13 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
                 to   { width: 0%; background: #EF4444; }
             }
 
-            /* Question text */
+            /* Question text styling */
             h1, h2, h3, [class*="question-text"], p {
-                font-size: 26px !important;
+                font-size: 24px !important;
                 line-height: 1.35 !important;
                 font-weight: 800 !important;
                 color: #0F172A !important;
-                text-align: center !important;
-                margin-bottom: 20px !important;
+                margin-bottom: 16px !important;
             }
 
             /* Vertical answers */
@@ -150,14 +147,14 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
 
             button, [class*="option-card"], [class*="choice"] {
                 width: 100% !important;
-                min-height: 64px !important;
-                padding: 12px 20px !important;
-                font-size: 20px !important;
+                min-height: 60px !important;
+                padding: 12px 18px !important;
+                font-size: 19px !important;
                 font-weight: 700 !important;
-                border-radius: 16px !important;
+                border-radius: 14px !important;
                 border: 2px solid #E2E8F0 !important;
                 background: #FFFFFF !important;
-                box-shadow: 0 4px 10px rgba(0,0,0,0.05) !important;
+                box-shadow: 0 4px 10px rgba(0,0,0,0.04) !important;
                 display: flex !important;
                 align-items: center !important;
                 box-sizing: border-box !important;
@@ -166,7 +163,7 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
             /* Floating prompt right above Instagram's bottom bar */
             #pico-solve-prompt {
                 position: fixed !important;
-                bottom: 160px !important;
+                bottom: 150px !important;
                 left: 50% !important;
                 transform: translateX(-50%) !important;
                 background: #0F172A !important;
@@ -185,7 +182,7 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
                 background-color: #10B981 !important;
                 color: #FFFFFF !important;
                 border-color: #059669 !important;
-                transform: scale(1.03) !important;
+                transform: scale(1.02) !important;
                 transition: all 0.3s ease-out !important;
                 box-shadow: 0 0 25px rgba(16, 185, 129, 0.5) !important;
             }
@@ -212,6 +209,7 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
                 transform: translateY(-440px) !important;
             }
         """)
+        
 
         # 3. Inject interactive elements and schedule triggers
         page.evaluate(f"""() => {{
