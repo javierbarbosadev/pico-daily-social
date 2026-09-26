@@ -47,12 +47,12 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
         page.goto(url, wait_until="networkidle")
         page.wait_for_timeout(1000)
 
-        # 1. Clean out unwanted header, nav, topic bars, and action buttons
+        # 1. Clean out only explicit buttons and navigation
         page.evaluate("""() => {
-            // Remove navigation and headers
+            // Remove top app navigation bar if present
             document.querySelectorAll('header, nav').forEach(el => el.remove());
 
-            // Remove hint/check buttons
+            // Remove only specific hint/check action buttons
             document.querySelectorAll('button, a').forEach(btn => {
                 const txt = (btn.innerText || '').trim().toLowerCase();
                 if (txt.includes('hint') || txt.includes('check answer')) {
@@ -60,24 +60,27 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
                 }
             });
 
-            // Remove Topic / Difficulty meta bars
+            // Remove only leaf elements containing TOPIC or DIFFICULTY (never parent wrappers)
             document.querySelectorAll('div, p, span').forEach(el => {
                 const txt = (el.innerText || '').trim().toUpperCase();
-                if (txt.includes('TOPIC:') || txt.includes('DIFFICULTY')) {
-                    el.remove();
+                if ((txt.includes('TOPIC:') || txt.includes('DIFFICULTY')) && el.children.length <= 2) {
+                    el.style.display = 'none';
                 }
             });
         }""")
 
-        # 2. Inject styles: reset parent margins to 0 auto and remove left gutters
+        # 2. Inject CSS rules
         page.add_style_tag(content="""
+            * {
+                box-sizing: border-box !important;
+            }
+
             html, body {
                 width: 540px !important;
                 height: 960px !important;
                 background-color: #FAF8F5 !important;
                 margin: 0 !important;
-                padding: 44px 20px 20px 20px !important;
-                box-sizing: border-box !important;
+                padding: 40px 16px 20px 16px !important;
                 overflow: hidden !important;
                 font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
                 display: flex !important;
@@ -86,20 +89,17 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
                 align-items: center !important;
             }
 
-            /* Strip out unwanted elements */
-            header, nav, [class*="hint"], [class*="topic"], [class*="difficulty"], [class*="progress"] {
+            /* Hide app decorations, headers, hints */
+            [class*="hint"], [class*="progress-bar"] {
                 display: none !important;
             }
 
-            /* Neutralise any parent width constraints or asymmetrical left margins */
+            /* Reset all wrappers so there is no left margin or width restriction */
             #root, #__next, main, [class*="container"], [class*="max-w"], body > div:not(#pico-reel-hook):not(#pico-solve-prompt):not(#pico-cta-overlay) {
                 width: 100% !important;
                 max-width: 100% !important;
-                margin-left: 0 !important;
-                margin-right: 0 !important;
-                padding-left: 0 !important;
-                padding-right: 0 !important;
-                box-sizing: border-box !important;
+                margin: 0 !important;
+                padding: 0 !important;
                 display: flex !important;
                 flex-direction: column !important;
                 align-items: stretch !important;
@@ -116,8 +116,7 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
                 font-weight: 800 !important;
                 text-align: center !important;
                 box-shadow: 0 10px 25px rgba(0,0,0,0.18) !important;
-                box-sizing: border-box !important;
-                margin-bottom: 20px !important;
+                margin-bottom: 16px !important;
                 flex-shrink: 0 !important;
                 z-index: 100 !important;
             }
@@ -144,7 +143,7 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
                 to   { width: 0%; background: #EF4444; }
             }
 
-            /* Question Card styling */
+            /* Question text container */
             h1, h2, h3, [class*="question-text"], p {
                 font-size: 20px !important;
                 line-height: 1.35 !important;
@@ -154,7 +153,7 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
                 text-align: center !important;
             }
 
-            /* Single-column answers */
+            /* Answers container */
             [class*="grid"], [class*="options-container"] {
                 display: flex !important;
                 flex-direction: column !important;
@@ -176,7 +175,6 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
                 box-shadow: 0 2px 6px rgba(0,0,0,0.04) !important;
                 display: flex !important;
                 align-items: center !important;
-                box-sizing: border-box !important;
             }
 
             /* Highlight correct answer */
@@ -192,7 +190,7 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
                 color: #FFFFFF !important;
             }
 
-            /* 3. Hold prompt pill: shifted to bottom 165px to clear the username line cleanly */
+            /* 3. Hold prompt pill */
             #pico-solve-prompt {
                 position: fixed !important;
                 bottom: 165px !important;
@@ -210,7 +208,7 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
                 z-index: 9999 !important;
             }
 
-            /* 4. Sliding CTA overlay */
+            /* 4. Sliding CTA card */
             #pico-cta-overlay {
                 position: fixed !important;
                 bottom: -320px !important;
