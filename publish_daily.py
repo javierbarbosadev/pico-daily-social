@@ -35,7 +35,6 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         
-        # 540x960 9:16 aspect ratio avoids side pillarbox bars
         context = browser.new_context(
             viewport={"width": 540, "height": 960},
             device_scale_factor=2,
@@ -48,7 +47,7 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
         page.goto(url, wait_until="networkidle")
         page.wait_for_timeout(1000)
 
-        # 1. Clean out explicit buttons, headers, and topic bars
+        # 1. Clean out unwanted header, nav, topic bars, and action buttons
         page.evaluate("""() => {
             // Remove navigation and headers
             document.querySelectorAll('header, nav').forEach(el => el.remove());
@@ -60,31 +59,53 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
                     btn.remove();
                 }
             });
+
+            // Remove Topic / Difficulty meta bars
+            document.querySelectorAll('div, p, span').forEach(el => {
+                const txt = (el.innerText || '').trim().toUpperCase();
+                if (txt.includes('TOPIC:') || txt.includes('DIFFICULTY')) {
+                    el.remove();
+                }
+            });
         }""")
 
-        # 2. Inject structured vertical layout styles with tightened spacing
+        # 2. Inject styles: reset parent margins to 0 auto and remove left gutters
         page.add_style_tag(content="""
             html, body {
                 width: 540px !important;
                 height: 960px !important;
-                background-color: #F8FAFC !important;
+                background-color: #FAF8F5 !important;
                 margin: 0 !important;
-                padding: 40px 20px 20px 20px !important;
+                padding: 44px 20px 20px 20px !important;
                 box-sizing: border-box !important;
                 overflow: hidden !important;
                 font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
                 display: flex !important;
                 flex-direction: column !important;
                 justify-content: flex-start !important;
-                align-items: stretch !important;
+                align-items: center !important;
             }
 
-            /* Hide app decorations, headers, hints, and topic headers */
+            /* Strip out unwanted elements */
             header, nav, [class*="hint"], [class*="topic"], [class*="difficulty"], [class*="progress"] {
                 display: none !important;
             }
 
-            /* 1. Hook Banner at the top of container */
+            /* Neutralise any parent width constraints or asymmetrical left margins */
+            #root, #__next, main, [class*="container"], [class*="max-w"], body > div:not(#pico-reel-hook):not(#pico-solve-prompt):not(#pico-cta-overlay) {
+                width: 100% !important;
+                max-width: 100% !important;
+                margin-left: 0 !important;
+                margin-right: 0 !important;
+                padding-left: 0 !important;
+                padding-right: 0 !important;
+                box-sizing: border-box !important;
+                display: flex !important;
+                flex-direction: column !important;
+                align-items: stretch !important;
+            }
+
+            /* 1. Hook Banner */
             #pico-reel-hook {
                 width: 100% !important;
                 background: #0F172A !important;
@@ -96,7 +117,7 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
                 text-align: center !important;
                 box-shadow: 0 10px 25px rgba(0,0,0,0.18) !important;
                 box-sizing: border-box !important;
-                margin-bottom: 16px !important;
+                margin-bottom: 20px !important;
                 flex-shrink: 0 !important;
                 z-index: 100 !important;
             }
@@ -123,23 +144,13 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
                 to   { width: 0%; background: #EF4444; }
             }
 
-            /* 2. Main Question Container */
-            main, [class*="max-w"], body > div:not(#pico-reel-hook):not(#pico-solve-prompt):not(#pico-cta-overlay) {
-                width: 100% !important;
-                max-width: 100% !important;
-                margin: 0 !important;
-                padding: 0 !important;
-                box-sizing: border-box !important;
-                display: flex !important;
-                flex-direction: column !important;
-            }
-
+            /* Question Card styling */
             h1, h2, h3, [class*="question-text"], p {
                 font-size: 20px !important;
-                line-height: 1.3 !important;
+                line-height: 1.35 !important;
                 font-weight: 800 !important;
                 color: #0F172A !important;
-                margin: 0 0 14px 0 !important;
+                margin: 0 0 16px 0 !important;
                 text-align: center !important;
             }
 
@@ -150,11 +161,12 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
                 gap: 10px !important;
                 width: 100% !important;
                 margin: 0 !important;
+                padding: 0 !important;
             }
 
             button, [class*="option-card"], [class*="choice"] {
                 width: 100% !important;
-                min-height: 50px !important;
+                min-height: 52px !important;
                 padding: 8px 16px !important;
                 font-size: 18px !important;
                 font-weight: 700 !important;
@@ -180,15 +192,15 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
                 color: #FFFFFF !important;
             }
 
-            /* 3. Bottom hold prompt pill pinned above Instagram bottom overlays */
+            /* 3. Hold prompt pill: shifted to bottom 165px to clear the username line cleanly */
             #pico-solve-prompt {
                 position: fixed !important;
-                bottom: 140px !important;
+                bottom: 165px !important;
                 left: 50% !important;
                 transform: translateX(-50%) !important;
                 background: #0F172A !important;
                 color: #FFFFFF !important;
-                padding: 10px 20px !important;
+                padding: 10px 22px !important;
                 border-radius: 9999px !important;
                 font-size: 13px !important;
                 font-weight: 700 !important;
@@ -218,9 +230,8 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
             }
         """)
 
-        # 3. Inject elements in exact flow order
+        # 3. Inject elements
         page.evaluate(f"""() => {{
-            // Prepend Hook Banner to the very top of body
             const banner = document.createElement('div');
             banner.id = 'pico-reel-hook';
             banner.innerHTML = `
@@ -229,13 +240,11 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
             `;
             document.body.prepend(banner);
 
-            // Append Prompt Pill
             const prompt = document.createElement('div');
             prompt.id = 'pico-solve-prompt';
             prompt.innerText = '👆 Hold screen to pause • Answer below 👇';
             document.body.appendChild(prompt);
 
-            // Append Sliding CTA card
             const cta = document.createElement('div');
             cta.id = 'pico-cta-overlay';
             cta.innerHTML = `
@@ -247,7 +256,6 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
             `;
             document.body.appendChild(cta);
 
-            // Highlight answer at 3.5 seconds
             setTimeout(() => {{
                 const target = "{target_char}";
                 const all = Array.from(document.querySelectorAll('div, button, li, label'));
@@ -262,7 +270,6 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
                 }}
             }}, 3500);
 
-            // Slide CTA up at 5.5 seconds
             setTimeout(() => {{
                 cta.classList.add('active');
             }}, 5500);
@@ -343,7 +350,6 @@ def upload_video_to_cdn(video_path: str) -> str:
 def publish_reel_to_instagram(video_url: str, caption: str):
     base_url = f"https://graph.facebook.com/v21.0/{IG_USER_ID}"
 
-    # 1. Create Media Container
     print("Creating Reel media container on Instagram...")
     container_payload = {
         "media_type": "REELS",
@@ -358,7 +364,6 @@ def publish_reel_to_instagram(video_url: str, caption: str):
     container_id = res["id"]
     print(f"Reel Container created. ID: {container_id}")
 
-    # 2. Poll Container Status until Meta transcoding is FINISHED
     print("Polling Meta for Reel transcoding completion...")
     status_url = f"https://graph.facebook.com/v21.0/{container_id}"
     params = {
@@ -366,7 +371,7 @@ def publish_reel_to_instagram(video_url: str, caption: str):
         "access_token": ACCESS_TOKEN
     }
 
-    max_attempts = 24  # Poll up to 2 minutes
+    max_attempts = 24
     is_ready = False
 
     for attempt in range(1, max_attempts + 1):
@@ -386,7 +391,6 @@ def publish_reel_to_instagram(video_url: str, caption: str):
     if not is_ready:
         raise TimeoutError("Meta timed out processing the Reel video after 2 minutes.")
 
-    # 3. Publish Live
     print("Publishing Reel to feed...")
     publish_payload = {
         "creation_id": container_id,
