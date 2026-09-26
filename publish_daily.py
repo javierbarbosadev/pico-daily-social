@@ -47,24 +47,14 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
         page.goto(url, wait_until="networkidle")
         page.wait_for_timeout(1000)
 
-        # 1. Clean out only explicit buttons and navigation
+        # 1. Clean out only explicit headers, navbars, and action buttons
         page.evaluate("""() => {
-            // Remove top app navigation bar if present
             document.querySelectorAll('header, nav').forEach(el => el.remove());
 
-            // Remove only specific hint/check action buttons
             document.querySelectorAll('button, a').forEach(btn => {
                 const txt = (btn.innerText || '').trim().toLowerCase();
                 if (txt.includes('hint') || txt.includes('check answer')) {
                     btn.remove();
-                }
-            });
-
-            // Remove only leaf elements containing TOPIC or DIFFICULTY (never parent wrappers)
-            document.querySelectorAll('div, p, span').forEach(el => {
-                const txt = (el.innerText || '').trim().toUpperCase();
-                if ((txt.includes('TOPIC:') || txt.includes('DIFFICULTY')) && el.children.length <= 2) {
-                    el.style.display = 'none';
                 }
             });
         }""")
@@ -78,31 +68,28 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
             html, body {
                 width: 540px !important;
                 height: 960px !important;
-                background-color: #FAF8F5 !important;
+                background-color: #F8FAFC !important;
                 margin: 0 !important;
-                padding: 40px 16px 20px 16px !important;
+                padding: 44px 20px 20px 20px !important;
                 overflow: hidden !important;
                 font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
                 display: flex !important;
                 flex-direction: column !important;
                 justify-content: flex-start !important;
-                align-items: center !important;
+                align-items: stretch !important;
             }
 
-            /* Hide app decorations, headers, hints */
-            [class*="hint"], [class*="progress-bar"] {
+            /* Hide app decorations, headers, hints without touching containers */
+            [class*="hint"], [class*="progress"] {
                 display: none !important;
             }
 
-            /* Reset all wrappers so there is no left margin or width restriction */
-            #root, #__next, main, [class*="container"], [class*="max-w"], body > div:not(#pico-reel-hook):not(#pico-solve-prompt):not(#pico-cta-overlay) {
+            /* Centre main content without collapsing inner tree */
+            main, [class*="max-w"] {
                 width: 100% !important;
                 max-width: 100% !important;
-                margin: 0 !important;
+                margin: 0 auto !important;
                 padding: 0 !important;
-                display: flex !important;
-                flex-direction: column !important;
-                align-items: stretch !important;
             }
 
             /* 1. Hook Banner */
@@ -149,7 +136,7 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
                 line-height: 1.35 !important;
                 font-weight: 800 !important;
                 color: #0F172A !important;
-                margin: 0 0 16px 0 !important;
+                margin: 0 0 14px 0 !important;
                 text-align: center !important;
             }
 
@@ -190,7 +177,7 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
                 color: #FFFFFF !important;
             }
 
-            /* 3. Hold prompt pill */
+            /* 3. Hold prompt pill: safely floating above Instagram handle & caption */
             #pico-solve-prompt {
                 position: fixed !important;
                 bottom: 165px !important;
