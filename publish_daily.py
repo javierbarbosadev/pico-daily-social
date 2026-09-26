@@ -48,7 +48,6 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
         page.goto(url, wait_until="networkidle")
         page.wait_for_timeout(1000)
 
-        # 1. Remove unwanted UI elements directly from DOM
         # 1. Remove unwanted UI elements directly from DOM using valid CSS & text filtering
         page.evaluate("""() => {
             const removeSelectors = [
@@ -179,13 +178,22 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
                 color: #FFFFFF !important;
             }
 
-            /* Interactive Callout under answers */
+            /* Interactive callout pill placed directly under options */
+            /* Floating pill pinned just above Instagram's bottom caption zone */
             #pico-solve-prompt {
-                margin-top: 24px;
-                text-align: center;
-                font-size: 15px;
-                font-weight: 700;
-                color: #64748B;
+                position: fixed !important;
+                bottom: 160px !important;
+                left: 50% !important;
+                transform: translateX(-50%) !important;
+                background: #0F172A !important;
+                color: #FFFFFF !important;
+                padding: 10px 18px !important;
+                border-radius: 9999px !important;
+                font-size: 13px !important;
+                font-weight: 700 !important;
+                white-space: nowrap !important;
+                box-shadow: 0 8px 20px rgba(0,0,0,0.25) !important;
+                z-index: 99999 !important;
             }
 
             /* Bottom CTA Card (positioned above IG caption zone) */
@@ -218,10 +226,28 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
             `;
             document.body.prepend(banner);
 
+            // Remove hint text/buttons so they do not push content down
+            document.querySelectorAll('button, div, span, p').forEach(el => {
+                const txt = (el.innerText || '').trim().toLowerCase();
+                if (txt === 'need a hint?' || txt === 'hint') {
+                    const container = el.closest('button') || el.closest('div') || el;
+                    container.remove();
+                }
+            });
+
+            // Append prompt directly to body so it floats right above the bottom UI
             const prompt = document.createElement('div');
             prompt.id = 'pico-solve-prompt';
-            prompt.innerText = '⏸️ Pause to solve • Drop your answer below 👇';
+            prompt.innerText = '👆 Hold screen to pause for time • Answer below 👇';
             document.body.appendChild(prompt);
+
+            const options = document.querySelectorAll('button, [class*="option"], [class*="choice"]');
+            if (options.length > 0) {
+                const lastOption = options[options.length - 1];
+                lastOption.parentNode.insertBefore(prompt, lastOption.nextSibling);
+            } else {
+                document.body.appendChild(prompt);
+            }
 
             const cta = document.createElement('div');
             cta.id = 'pico-cta-overlay';
