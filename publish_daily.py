@@ -49,17 +49,25 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
         page.wait_for_timeout(1000)
 
         # 1. Remove unwanted UI elements directly from DOM
+        # 1. Remove unwanted UI elements directly from DOM using valid CSS & text filtering
         page.evaluate("""() => {
-            // Remove headers, logos, settings icons, hints, and check buttons
             const removeSelectors = [
                 'header', 'nav', '[class*="header"]', '[class*="navbar"]',
-                '[class*="hint"]', 'button:has-text("Check Answer")',
-                'button:has-text("Hint")', '[class*="topic"]', '[class*="difficulty"]'
+                '[class*="hint"]', '[class*="topic"]', '[class*="difficulty"]'
             ];
             removeSelectors.forEach(sel => {
                 document.querySelectorAll(sel).forEach(el => el.remove());
             });
+
+            // Safely remove Check Answer and Hint buttons
+            document.querySelectorAll('button').forEach(btn => {
+                const txt = (btn.innerText || '').trim();
+                if (txt.includes('Check Answer') || txt.includes('Hint')) {
+                    btn.remove();
+                }
+            });
         }""")
+        
 
         # 2. Inject Instagram-optimised full-bleed styles
         page.add_style_tag(content="""
