@@ -48,12 +48,12 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
         page.goto(url, wait_until="networkidle")
         page.wait_for_timeout(1000)
 
-        # 1. Clean out only explicit buttons and nav bars, preserving all content divs
+        # 1. Clean out explicit buttons, headers, and topic bars
         page.evaluate("""() => {
-            // Remove top app navigation bar if present
+            // Remove navigation and headers
             document.querySelectorAll('header, nav').forEach(el => el.remove());
 
-            // Remove only specific hint/check action buttons, never parent containers
+            // Remove hint/check buttons
             document.querySelectorAll('button, a').forEach(btn => {
                 const txt = (btn.innerText || '').trim().toLowerCase();
                 if (txt.includes('hint') || txt.includes('check answer')) {
@@ -62,14 +62,14 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
             });
         }""")
 
-        # 2. Inject structured vertical layout styles
+        # 2. Inject structured vertical layout styles with tightened spacing
         page.add_style_tag(content="""
             html, body {
                 width: 540px !important;
                 height: 960px !important;
                 background-color: #F8FAFC !important;
                 margin: 0 !important;
-                padding: 100px 24px 130px 24px !important;
+                padding: 40px 20px 20px 20px !important;
                 box-sizing: border-box !important;
                 overflow: hidden !important;
                 font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
@@ -79,12 +79,12 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
                 align-items: stretch !important;
             }
 
-            /* Hide app decorations, headers, hints */
-            [class*="hint"], [class*="topic"], [class*="difficulty"], [class*="progress"] {
+            /* Hide app decorations, headers, hints, and topic headers */
+            header, nav, [class*="hint"], [class*="topic"], [class*="difficulty"], [class*="progress"] {
                 display: none !important;
             }
 
-            /* 1. Hook Banner at the top of our container */
+            /* 1. Hook Banner at the top of container */
             #pico-reel-hook {
                 width: 100% !important;
                 background: #0F172A !important;
@@ -96,8 +96,9 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
                 text-align: center !important;
                 box-shadow: 0 10px 25px rgba(0,0,0,0.18) !important;
                 box-sizing: border-box !important;
-                margin-bottom: 20px !important;
+                margin-bottom: 16px !important;
                 flex-shrink: 0 !important;
+                z-index: 100 !important;
             }
 
             #pico-timer-wrapper {
@@ -134,15 +135,15 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
             }
 
             h1, h2, h3, [class*="question-text"], p {
-                font-size: 21px !important;
+                font-size: 20px !important;
                 line-height: 1.3 !important;
                 font-weight: 800 !important;
                 color: #0F172A !important;
-                margin: 0 0 16px 0 !important;
+                margin: 0 0 14px 0 !important;
                 text-align: center !important;
             }
 
-            /* Single-column answers with tight spacing */
+            /* Single-column answers */
             [class*="grid"], [class*="options-container"] {
                 display: flex !important;
                 flex-direction: column !important;
@@ -153,7 +154,7 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
 
             button, [class*="option-card"], [class*="choice"] {
                 width: 100% !important;
-                min-height: 52px !important;
+                min-height: 50px !important;
                 padding: 8px 16px !important;
                 font-size: 18px !important;
                 font-weight: 700 !important;
@@ -179,22 +180,25 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
                 color: #FFFFFF !important;
             }
 
-            /* 3. Bottom hold prompt pill sitting right below the options */
+            /* 3. Bottom hold prompt pill pinned above Instagram bottom overlays */
             #pico-solve-prompt {
-                margin: 18px auto 0 auto !important;
+                position: fixed !important;
+                bottom: 140px !important;
+                left: 50% !important;
+                transform: translateX(-50%) !important;
                 background: #0F172A !important;
                 color: #FFFFFF !important;
-                padding: 10px 18px !important;
+                padding: 10px 20px !important;
                 border-radius: 9999px !important;
                 font-size: 13px !important;
                 font-weight: 700 !important;
                 text-align: center !important;
-                width: fit-content !important;
-                box-shadow: 0 6px 16px rgba(0,0,0,0.18) !important;
-                flex-shrink: 0 !important;
+                white-space: nowrap !important;
+                box-shadow: 0 8px 20px rgba(0,0,0,0.25) !important;
+                z-index: 9999 !important;
             }
 
-            /* CTA slide-up overlay */
+            /* 4. Sliding CTA overlay */
             #pico-cta-overlay {
                 position: fixed !important;
                 bottom: -320px !important;
@@ -210,7 +214,7 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
                 z-index: 1000000 !important;
             }
             #pico-cta-overlay.active {
-                transform: translateY(-440px) !important;
+                transform: translateY(-460px) !important;
             }
         """)
 
@@ -225,10 +229,10 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
             `;
             document.body.prepend(banner);
 
-            // Append Prompt Pill right at the bottom of the body flow
+            // Append Prompt Pill
             const prompt = document.createElement('div');
             prompt.id = 'pico-solve-prompt';
-            prompt.innerText = '👆 Hold screen to pause for time • Answer below 👇';
+            prompt.innerText = '👆 Hold screen to pause • Answer below 👇';
             document.body.appendChild(prompt);
 
             // Append Sliding CTA card
@@ -243,6 +247,7 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
             `;
             document.body.appendChild(cta);
 
+            // Highlight answer at 3.5 seconds
             setTimeout(() => {{
                 const target = "{target_char}";
                 const all = Array.from(document.querySelectorAll('div, button, li, label'));
@@ -257,11 +262,11 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
                 }}
             }}, 3500);
 
+            // Slide CTA up at 5.5 seconds
             setTimeout(() => {{
                 cta.classList.add('active');
             }}, 5500);
         }}""")
-        
 
         page.wait_for_timeout(7000)
 
@@ -318,8 +323,8 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
     subprocess.run(ffmpeg_cmd, check=True)
     print("Reel ready for Instagram.")
     return output_mp4
-    
-    
+
+
 def upload_video_to_cdn(video_path: str) -> str:
     print("Uploading MP4 Reel to Cloudinary...")
     res = cloudinary.uploader.upload(
@@ -333,6 +338,7 @@ def upload_video_to_cdn(video_path: str) -> str:
     print(f"Video hosted: {url}")
     time.sleep(8)
     return url
+
 
 def publish_reel_to_instagram(video_url: str, caption: str):
     base_url = f"https://graph.facebook.com/v21.0/{IG_USER_ID}"
@@ -393,6 +399,7 @@ def publish_reel_to_instagram(video_url: str, caption: str):
 
     print(f"Success! Reel live on @pico11plus. Live ID: {pub_res['id']}")
 
+
 def main():
     if not GCP_KEY:
         raise ValueError("Missing GCP_SERVICE_ACCOUNT_KEY secret.")
@@ -448,6 +455,7 @@ def main():
             sheet.update_cell(idx, status_col, "POSTED")
             print(f"Row {idx} updated to POSTED.")
             break
+
 
 if __name__ == "__main__":
     main()
