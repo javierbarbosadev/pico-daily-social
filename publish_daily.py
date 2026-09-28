@@ -119,15 +119,26 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
 
             #pico-timer-bar {
                 height: 100% !important;
-                background: #10B981 !important;
-                width: 100% !important;
-                animation: picoCountdown 3.5s linear forwards !important;
+                width: 0% !important;
+                border-radius: 3px !important;
+                animation: picoFillUp 3.5s linear forwards !important;
             }
 
-            @keyframes picoCountdown {
-                from { width: 100%; background: #10B981; }
-                50%  { background: #F59E0B; }
-                to   { width: 0%; background: #EF4444; }
+            @keyframes picoFillUp {
+                0% {
+                    width: 0%;
+                    background-color: #FFFFFF;
+                }
+                30% {
+                    background-color: #FFFFFF;
+                }
+                70% {
+                    background-color: #6EE7B7;
+                }
+                100% {
+                    width: 100%;
+                    background-color: #10B981;
+                }
             }
 
             /* Question text container */
