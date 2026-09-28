@@ -70,7 +70,7 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
                 height: 960px !important;
                 background-color: #F8FAFC !important;
                 margin: 0 !important;
-                padding: 44px 34px 20px 8px !important;
+                padding: 44px 34px 20px 10px !important;
                 overflow: hidden !important;
                 font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
                 display: flex !important;
@@ -99,7 +99,7 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
                 color: #FFFFFF !important;
                 padding: 14px 16px !important;
                 border-radius: 16px !important;
-                font-size: 17px !important;
+                font-size: 22px !important;
                 font-weight: 800 !important;
                 text-align: center !important;
                 box-shadow: 0 10px 25px rgba(0,0,0,0.18) !important;
@@ -187,7 +187,7 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
                 color: #FFFFFF !important;
                 padding: 10px 22px !important;
                 border-radius: 9999px !important;
-                font-size: 17px !important;
+                font-size: 22px !important;
                 font-weight: 700 !important;
                 text-align: center !important;
                 white-space: nowrap !important;
