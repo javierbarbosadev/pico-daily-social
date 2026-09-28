@@ -187,7 +187,7 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
                 color: #FFFFFF !important;
                 padding: 10px 22px !important;
                 border-radius: 9999px !important;
-                font-size: 13px !important;
+                font-size: 17px !important;
                 font-weight: 700 !important;
                 text-align: center !important;
                 white-space: nowrap !important;
@@ -227,14 +227,14 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
 
             const prompt = document.createElement('div');
             prompt.id = 'pico-solve-prompt';
-            prompt.innerText = '👆 Hold screen to pause • Answer below 👇';
+            prompt.innerText = '👆 Press screen to pause • Answer below 👇';
             document.body.appendChild(prompt);
 
             const cta = document.createElement('div');
             cta.id = 'pico-cta-overlay';
             cta.innerHTML = `
                 <div style="font-size: 20px; font-weight: 800; color: #0F172A; margin-bottom: 4px;">PicoLearn 11+ Practice</div>
-                <div style="font-size: 14px; color: #475569; margin-bottom: 14px;">Adaptive 11+ prep that builds exam confidence.</div>
+                <div style="font-size: 17px; color: #475569; margin-bottom: 14px;">Adaptive 11+ prep that builds exam confidence.</div>
                 <div style="display: inline-block; background: #10B981; color: #fff; font-size: 14px; font-weight: 700; padding: 10px 22px; border-radius: 12px;">
                     Try free at picolearn.co.uk
                 </div>
