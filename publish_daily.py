@@ -70,7 +70,7 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
                 height: 960px !important;
                 background-color: #F8FAFC !important;
                 margin: 0 !important;
-                padding: 44px 20px 20px 20px !important;
+                padding: 44px 28px 20px 12px !important;
                 overflow: hidden !important;
                 font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
                 display: flex !important;
@@ -340,6 +340,7 @@ def publish_reel_to_instagram(video_url: str, caption: str):
         "media_type": "REELS",
         "video_url": video_url,
         "caption": caption,
+        "share_to_feed": False,  # <--- Prevents publishing to your profile grid/post feed
         "access_token": ACCESS_TOKEN
     }
     res = requests.post(f"{base_url}/media", data=container_payload).json()
