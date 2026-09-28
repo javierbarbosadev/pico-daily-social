@@ -119,26 +119,9 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
 
             #pico-timer-bar {
                 height: 100% !important;
-                width: 0% !important;
+                width: 0%;
                 border-radius: 3px !important;
-                animation: picoFillUp 3.5s linear forwards !important;
-            }
-
-            @keyframes picoFillUp {
-                0% {
-                    width: 0%;
-                    background-color: #FFFFFF;
-                }
-                30% {
-                    background-color: #FFFFFF;
-                }
-                70% {
-                    background-color: #6EE7B7;
-                }
-                100% {
-                    width: 100%;
-                    background-color: #10B981;
-                }
+                background-color: #FFFFFF;
             }
 
             /* Question text container */
@@ -235,7 +218,35 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
                 <div id="pico-timer-wrapper"><div id="pico-timer-bar"></div></div>
             `;
             document.body.prepend(banner);
+            // --- ADD JS ANIMATION LOOP HERE ---
+            const bar = document.getElementById('pico-timer-bar');
+            const duration = 3500;
+            const startTime = performance.now();
 
+            function animateTimer(currentTime) {{
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1.0);
+
+                bar.style.width = (progress * 100) + '%';
+
+                // Interpolate from White (#FFFFFF) to Mint (#6EE7B7) to Emerald (#10B981)
+                if (progress < 0.6) {{
+                    bar.style.backgroundColor = '#FFFFFF';
+                }} else {{
+                    const t = (progress - 0.6) / 0.4;
+                    const r = Math.round(255 + t * (16 - 255));
+                    const g = Math.round(255 + t * (185 - 255));
+                    const b = Math.round(255 + t * (129 - 255));
+                    bar.style.backgroundColor = `rgb(${r}, ${g}, ${b})`;
+                }}
+
+                if (progress < 1.0) {{
+                    requestAnimationFrame(animateTimer);
+                }}
+            }}
+            
+            requestAnimationFrame(animateTimer);
+            // -----------------------------------
             const prompt = document.createElement('div');
             prompt.id = 'pico-solve-prompt';
             prompt.innerText = '👆 Press screen to pause • Answer below 👇';
