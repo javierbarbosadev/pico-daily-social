@@ -209,8 +209,8 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
             }
         """)
 
-        # 3. Inject elements
-        page.evaluate(f"""() => {{
+        # 3. Inject elements (plain multiline string, passing target_char as an argument)
+        page.evaluate("""(target) => {
             const banner = document.createElement('div');
             banner.id = 'pico-reel-hook';
             banner.innerHTML = `
@@ -218,35 +218,34 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
                 <div id="pico-timer-wrapper"><div id="pico-timer-bar"></div></div>
             `;
             document.body.prepend(banner);
-            // --- ADD JS ANIMATION LOOP HERE ---
+
             const bar = document.getElementById('pico-timer-bar');
             const duration = 3500;
             const startTime = performance.now();
 
-            function animateTimer(currentTime) {{
+            function animateTimer(currentTime) {
                 const elapsed = currentTime - startTime;
                 const progress = Math.min(elapsed / duration, 1.0);
 
                 bar.style.width = (progress * 100) + '%';
 
-                // Interpolate from White (#FFFFFF) to Mint (#6EE7B7) to Emerald (#10B981)
-                if (progress < 0.6) {{
+                if (progress < 0.6) {
                     bar.style.backgroundColor = '#FFFFFF';
-                }} else {{
+                } else {
                     const t = (progress - 0.6) / 0.4;
                     const r = Math.round(255 + t * (16 - 255));
                     const g = Math.round(255 + t * (185 - 255));
                     const b = Math.round(255 + t * (129 - 255));
                     bar.style.backgroundColor = `rgb(${r}, ${g}, ${b})`;
-                }}
+                }
 
-                if (progress < 1.0) {{
+                if (progress < 1.0) {
                     requestAnimationFrame(animateTimer);
-                }}
-            }}
+                }
+            }
             
             requestAnimationFrame(animateTimer);
-            // -----------------------------------
+
             const prompt = document.createElement('div');
             prompt.id = 'pico-solve-prompt';
             prompt.innerText = '👆 Press screen to pause • Answer below 👇';
@@ -263,24 +262,23 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
             `;
             document.body.appendChild(cta);
 
-            setTimeout(() => {{
-                const target = "{target_char}";
+            setTimeout(() => {
                 const all = Array.from(document.querySelectorAll('div, button, li, label'));
-                const match = all.find(el => {{
+                const match = all.find(el => {
                     const t = (el.innerText || '').trim();
                     return (t === target || t.startsWith(target + ' ') || t.startsWith(target + '\\n')) &&
                            el.children.length <= 3 && el.offsetHeight > 25 && el.offsetHeight < 120;
-                }});
-                if (match) {{
+                });
+                if (match) {
                     const card = match.closest('button') || match.closest('[class*="option"]') || match.parentElement;
                     card.classList.add('pico-highlight-correct');
-                }}
-            }}, 3500);
+                }
+            }, 3500);
 
-            setTimeout(() => {{
+            setTimeout(() => {
                 cta.classList.add('active');
-            }}, 5500);
-        }}""")
+            }, 5500);
+        }""", target_char)
 
         page.wait_for_timeout(7000)
 
@@ -362,7 +360,7 @@ def publish_reel_to_instagram(video_url: str, caption: str):
         "media_type": "REELS",
         "video_url": video_url,
         "caption": caption,
-        "share_to_feed": False,  # <--- Prevents publishing to your profile grid/post feed
+        "share_to_feed": False,  # Prevents publishing to your profile grid/post feed
         "access_token": ACCESS_TOKEN
     }
     res = requests.post(f"{base_url}/media", data=container_payload).json()
