@@ -70,7 +70,7 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
                 height: 960px !important;
                 background-color: #F8FAFC !important;
                 margin: 0 !important;
-                padding: 44px 28px 20px 12px !important;
+                padding: 44px 34px 20px 20px !important;
                 overflow: hidden !important;
                 font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
                 display: flex !important;
@@ -200,7 +200,7 @@ def record_reel_video(url: str, correct_letter: str, output_mp4: str = "daily_re
                 position: fixed !important;
                 bottom: -320px !important;
                 left: 20px !important;
-                right: 20px !important;
+                right: 34px !important;
                 background: #FFFFFF !important;
                 border-radius: 24px !important;
                 border-top: 6px solid #10B981 !important;
